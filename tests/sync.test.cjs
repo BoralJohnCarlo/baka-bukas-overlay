@@ -9,7 +9,7 @@ const alignment = require('./fixtures/aligned-timeline.json');
 
 class Element {
   constructor() {
-    this.style = {}; this.dataset = {}; this.attributes = {}; this.children = [];
+    this.style = { setProperty(key, value) { this[key] = value; } }; this.dataset = {}; this.attributes = {}; this.children = [];
     this.listeners = new Map(); this.textContent = ''; this.disabled = false;
     this.classList = { toggle() {} };
   }
@@ -29,17 +29,14 @@ class Element {
 }
 
 function setup({ browser = false } = {}) {
-  const ids = Object.fromEntries(['audio', 'lyric', 'playBtn', 'resetBtn', 'audioBtn', 'seek', 'timeLabel', 'status', 'intro', 'stage', 'audioFile'].map(id => [id, new Element()]));
+  const ids = Object.fromEntries(['audio', 'lyric', 'playBtn', 'resetBtn', 'seek', 'timeLabel', 'status', 'intro', 'stage'].map(id => [id, new Element()]));
   ids.stage.clientWidth = 1440;
   ids.stage.clientHeight = 900;
-  ids.audioFile.files = [];
-  ids.audioFile.click = () => { ids.audioFile.clicked = true; };
-  const revokedUrls = [];
-  let nextUrl = 0;
   const audio = ids.audio;
-  Object.assign(audio, { src: '', currentTime: 0, duration: 200, readyState: 0, paused: true, ended: false, playbackRate: 1 });
+  Object.assign(audio, { src: 'file:///original.mp3', currentTime: 0, duration: 200, readyState: 0, seeking: false, paused: true, ended: false, muted: false, playbackRate: 1 });
   let currentTime = 0;
   Object.defineProperty(audio, 'currentTime', {
+    configurable: true,
     get: () => currentTime,
     set: value => { currentTime = value; if (value < audio.duration) audio.ended = false; }
   });
@@ -60,9 +57,8 @@ function setup({ browser = false } = {}) {
       getElementById: id => ids[id], querySelectorAll: () => photos,
       createElement: () => new Element(), createTextNode: text => Object.assign(new Element(), { textContent: text })
     },
-    window: { innerWidth: 1440, matchMedia: () => motionPreference, addEventListener: (...args) => windowEvents.addEventListener(...args), overlay: browser ? undefined : { chooseAudio: async () => 'file:///original.wav' } },
+    window: { innerWidth: 1440, matchMedia: () => motionPreference, addEventListener: (...args) => windowEvents.addEventListener(...args), overlay: browser ? undefined : { desktop: true } },
     ResizeObserver: class { constructor(callback) { stageResize = callback; } observe() {} },
-    URL: { createObjectURL: () => `blob:recording-${++nextUrl}`, revokeObjectURL: url => revokedUrls.push(url) },
     requestAnimationFrame: fn => { frames.set(++nextFrame, fn); return nextFrame; },
     cancelAnimationFrame: id => frames.delete(id)
   });
@@ -76,10 +72,10 @@ function setup({ browser = false } = {}) {
     for (const fn of pending) fn();
   };
   const load = async () => {
-    await ids.audioBtn.emit('click'); audio.readyState = 4; await audio.emit('loadedmetadata');
+    audio.readyState = 4; await audio.emit('loadedmetadata');
   };
   const snapshot = () => JSON.stringify([ids.lyric.style, photos.map(p => p.style), run('units.map(u => u.style)'), run('photoBanks.map(b => b.images.map(image => image.style))')]);
-  return { ids, audio, photos, frames, run, step, load, snapshot, revokedUrls, windowEvents, documentEvents, motionPreference, resizeStage: () => stageResize() };
+  return { ids, audio, photos, frames, run, step, load, snapshot, windowEvents, documentEvents, motionPreference, resizeStage: () => stageResize() };
 }
 
 test('short recordings replay from 1:40 rather than the browser rewind to zero', async () => {
@@ -125,7 +121,7 @@ test('short-recording end stays cleared on redraw, hide and pause; seeking and r
     await s.documentEvents.emit('visibilitychange'); assertCleared();
     await s.audio.emit('pause'); assertCleared();
     await s.audio.emit('timeupdate'); assertCleared();
-    s.ids.seek.value = '113.25';
+    s.ids.seek.value = '13.25';
     await s.ids.seek.emit('input');
     assert.equal(s.audio.ended, false);
     assert.equal(s.ids.lyric.style.opacity, '1');
@@ -136,30 +132,6 @@ test('short-recording end stays cleared on redraw, hide and pause; seeking and r
     assert.equal(s.audio.currentTime, 100);
     assert.equal(s.ids.intro.style.opacity, '0.85');
   }
-});
-
-test('browser picker supports cancel, replacement, playback and release of previous recordings', async () => {
-  const s = setup({ browser: true });
-  await s.ids.audioBtn.emit('click');
-  assert.equal(s.ids.audioFile.clicked, true);
-  await s.ids.audioFile.emit('change');
-  assert.equal(s.audio.src, '');
-  s.ids.audioFile.files = [{ name: 'original.mp3' }];
-  await s.ids.audioFile.emit('change');
-  assert.equal(s.audio.src, 'blob:recording-1');
-  s.audio.readyState = 4;
-  await s.audio.emit('loadedmetadata');
-  await s.ids.playBtn.emit('click');
-  assert.equal(s.audio.paused, false);
-  assert.equal(s.audio.currentTime, 100);
-  s.ids.audioFile.files = [];
-  await s.ids.audioFile.emit('change');
-  assert.equal(s.audio.paused, false);
-  s.ids.audioFile.files = [{ name: 'replacement.mp3' }];
-  await s.ids.audioFile.emit('change');
-  assert.equal(s.audio.paused, true);
-  assert.equal(s.audio.src, 'blob:recording-2');
-  assert.deepEqual(s.revokedUrls, ['blob:recording-1']);
 });
 
 test('a browser tap starts loading even before metadata is available', async () => {
@@ -174,6 +146,9 @@ test('a browser tap starts loading even before metadata is available', async () 
   s.audio.readyState = 4;
   await s.audio.emit('loadedmetadata');
   assert.equal(s.audio.currentTime, 100);
+  assert.equal(s.audio.muted, true);
+  await s.audio.emit('seeked');
+  assert.equal(s.audio.muted, false);
   s.audio.paused = false;
   await s.audio.emit('play');
   finishPlay();
@@ -191,6 +166,122 @@ test('mobile placement follows available stage space without changing audio timi
   assert.equal(s.ids.lyric.style.top, '72%');
   assert.deepEqual(s.photos.map(p => p.style.left), ['26%', '74%']);
   assert.equal(s.audio.currentTime, 100);
+});
+
+test('cold playback remains muted until the requested edit position is confirmed', async () => {
+  const s = setup({ browser: true });
+  let requested = 0;
+  let actual = 0;
+  Object.defineProperty(s.audio, 'currentTime', {
+    get: () => actual,
+    set: value => { requested = value; s.audio.seeking = true; },
+    configurable: true
+  });
+  const pending = s.ids.playBtn.emit('click');
+  assert.equal(s.audio.muted, true);
+  assert.equal(actual, 0);
+  s.audio.readyState = 4;
+  await s.audio.emit('loadedmetadata');
+  assert.equal(requested, 100);
+  assert.equal(s.audio.muted, true);
+  await pending;
+  assert.equal(s.ids.seek.value, 0);
+  assert.equal(s.ids.timeLabel.textContent, '0:00 / 1:00');
+  actual = 100.01;
+  s.audio.seeking = false;
+  await s.audio.emit('seeked');
+  assert.equal(s.audio.muted, false);
+  assert.equal(s.audio.paused, false);
+});
+
+test('a refused edit seek stops playback instead of exposing the song opening', async () => {
+  const s = setup({ browser: true });
+  let actual = 0;
+  Object.defineProperty(s.audio, 'currentTime', { get: () => actual, set() {}, configurable: true });
+  await s.ids.playBtn.emit('click');
+  assert.equal(s.audio.muted, true);
+  s.audio.readyState = 4;
+  for (let i = 0; i < 4; i++) await s.audio.emit('canplay');
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.audio.muted, false);
+  assert.equal(s.frames.size, 0);
+  assert.match(s.ids.status.textContent, /retry/);
+});
+
+test('reset cancels a cold play request without leaving muted audio or resuming later', async () => {
+  const s = setup({ browser: true });
+  let finishPlay;
+  s.audio.play = () => {
+    s.audio.paused = false;
+    return new Promise(resolve => { finishPlay = resolve; });
+  };
+  const pending = s.ids.playBtn.emit('click');
+  assert.equal(s.audio.muted, true);
+  await s.ids.resetBtn.emit('click');
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.audio.muted, false);
+  s.audio.readyState = 4;
+  await s.audio.emit('loadedmetadata');
+  finishPlay();
+  await pending;
+  assert.equal(s.audio.currentTime, 100);
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.frames.size, 0);
+  assert.equal(s.ids.playBtn.textContent, 'Play song');
+});
+
+test('elapsed progress follows the audio and reaches the real end of short files', async () => {
+  const s = setup(); await s.load();
+  s.audio.currentTime = 130;
+  await s.audio.emit('timeupdate');
+  assert.equal(s.ids.seek.value, 30);
+  assert.equal(s.ids.seek.style['--progress'], '50%');
+  assert.equal(s.ids.timeLabel.textContent, '0:30 / 1:00');
+  s.audio.duration = 120;
+  s.audio.currentTime = 120;
+  s.audio.ended = true;
+  await s.audio.emit('ended');
+  assert.equal(s.ids.seek.max, '20');
+  assert.equal(s.ids.seek.value, 20);
+  assert.equal(s.ids.seek.style['--progress'], '100%');
+  assert.equal(s.ids.timeLabel.textContent, '0:20 / 0:20');
+});
+
+test('dragging the seek thumb holds its position and resumes only if previously playing', async () => {
+  const s = setup(); await s.load();
+  await s.ids.playBtn.emit('click');
+  s.step(110);
+  await s.ids.seek.emit('pointerdown');
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.frames.size, 0);
+  s.ids.seek.value = '35';
+  await s.ids.seek.emit('input');
+  s.audio.currentTime = 110;
+  await s.audio.emit('timeupdate');
+  assert.equal(s.ids.seek.value, '35');
+  assert.equal(s.ids.timeLabel.textContent, '0:35 / 1:00');
+  s.audio.currentTime = 135;
+  await s.audio.emit('seeked');
+  await s.windowEvents.emit('pointerup');
+  assert.equal(s.audio.paused, false);
+  await s.ids.playBtn.emit('click');
+  await s.ids.seek.emit('pointerdown');
+  s.ids.seek.value = '20';
+  await s.ids.seek.emit('input');
+  await s.ids.seek.emit('change');
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.audio.currentTime, 120);
+});
+
+test('hiding a browser tab during a scrub cancels automatic resume', async () => {
+  const s = setup({ browser: true }); await s.load();
+  await s.ids.playBtn.emit('click');
+  await s.ids.seek.emit('pointerdown');
+  s.run('document.hidden = true');
+  await s.documentEvents.emit('visibilitychange');
+  await s.windowEvents.emit('pointerup');
+  assert.equal(s.audio.paused, true);
+  assert.equal(s.frames.size, 0);
 });
 
 test('approved alignment: measured times, unchanged segment, original text/order/photos', () => {
@@ -298,11 +389,11 @@ test('arbitrary forward/backward seeks reproduce exact poses with no cumulative 
   await s.ids.playBtn.emit('click');
   for (let i = 0; i < 20; i++) await s.audio.emit('seeked');
   assert.equal(s.frames.size, 1);
-  s.ids.seek.value = '125.5'; await s.ids.seek.emit('input');
+  s.ids.seek.value = '25.5'; await s.ids.seek.emit('input');
   assert.equal(s.audio.currentTime, 125.5); assert.equal(s.run('lastCue'), 5);
 });
 
-test('choosing recordings repeatedly does not add listeners; short files stay disabled', async () => {
+test('metadata events do not add listeners; incomplete recordings stay disabled', async () => {
   const s = setup();
   const counts = () => [...s.audio.listeners].map(([type, list]) => [type, list.length]);
   const original = counts();

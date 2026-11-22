@@ -1,2 +1,2 @@
-const { contextBridge, ipcRenderer } = require('electron');
-contextBridge.exposeInMainWorld('overlay', { chooseAudio: () => ipcRenderer.invoke('choose-audio') });
+const { contextBridge } = require('electron');
+contextBridge.exposeInMainWorld('overlay', { desktop: true });

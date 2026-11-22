@@ -7,8 +7,7 @@ const timeLabel = document.getElementById('timeLabel');
 const status = document.getElementById('status');
 const intro = document.getElementById('intro');
 const stage = document.getElementById('stage');
-const audioFile = document.getElementById('audioFile');
-const desktopOverlay = typeof window.overlay?.chooseAudio === 'function';
+const desktopOverlay = window.overlay?.desktop === true;
 document.documentElement.classList.toggle('browser-mode', !desktopOverlay);
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const photoBanks = photos.map((photo, card) => {
@@ -32,12 +31,15 @@ const photoBanks = photos.map((photo, card) => {
 let frame = null;
 let lastCue = -1;
 let units = [];
-let selecting = false;
 let playPending = false;
 let playbackGeneration = 0;
-let localAudioUrl = null;
+let startup = null;
+let draggingSeek = false;
+let resumeAfterScrub = false;
+let previewTime = null;
 
 const formatTime = time => `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+const segmentEnd = () => Number.isFinite(audio.duration) && audio.duration > START_AT ? Math.min(END_AT, audio.duration) : END_AT;
 
 function showCue(index) {
   lyric.replaceChildren();
@@ -74,8 +76,13 @@ function renderAt(seconds) {
     lastCue = index;
     showCue(index);
   }
-  seek.value = Math.max(START_AT, Math.min(END_AT, seconds));
-  timeLabel.textContent = `${formatTime(audio.src ? seconds : START_AT)} / ${formatTime(END_AT)}`;
+  const duration = segmentEnd() - START_AT;
+  const elapsed = Math.max(0, Math.min(duration, seconds - START_AT));
+  if (!draggingSeek) seek.value = elapsed;
+  seek.max = String(duration);
+  seek.style.setProperty('--progress', `${elapsed / duration * 100}%`);
+  timeLabel.textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`;
+  seek.setAttribute('aria-valuetext', `${formatTime(elapsed)} of ${formatTime(duration)}`);
   const introAge = seconds - START_AT;
   intro.style.opacity = String(introAge >= 0 && introAge < 3.5 ? (1 - smooth((introAge - 2) / 1.5)) * 0.85 : 0);
   if (index < 0) {
@@ -127,7 +134,36 @@ function cancelLoop() {
 }
 
 function renderCurrent() {
-  renderAt(audio.ended ? END_AT : audio.currentTime);
+  renderAt(previewTime ?? startup?.target ?? (audio.ended ? END_AT : audio.currentTime));
+}
+
+function finishStartup() {
+  if (!startup || audio.readyState < 1 || audio.seeking) return;
+  if (audio.currentTime >= startup.target - 0.05 && audio.currentTime < startup.target + 0.5) {
+    const muted = startup.muted;
+    startup = null;
+    audio.muted = muted;
+    status.textContent = 'Baka Bukas · Angela Ken';
+    renderCurrent();
+    return;
+  }
+  if (startup.attempts >= 3) {
+    pause();
+    status.textContent = 'Could not load the edit position. Tap Play song to retry.';
+    return;
+  }
+  startup.attempts++;
+  try { audio.currentTime = startup.target; }
+  catch {
+    pause();
+    status.textContent = 'Could not load the edit position. Tap Play song to retry.';
+  }
+}
+
+function guardStartup(target) {
+  startup = { target, muted: audio.muted, attempts: 0 };
+  audio.muted = true;
+  finishStartup();
 }
 
 function tick() {
@@ -148,7 +184,14 @@ function startLoop() {
 
 function pause() {
   playbackGeneration++;
+  draggingSeek = false;
+  resumeAfterScrub = false;
   audio.pause();
+  if (startup) {
+    const muted = startup.muted;
+    startup = null;
+    audio.muted = muted;
+  }
   cancelLoop();
   renderCurrent();
   playBtn.textContent = 'Play song';
@@ -156,95 +199,71 @@ function pause() {
 }
 
 function reset() {
+  draggingSeek = false;
+  resumeAfterScrub = false;
+  previewTime = null;
   pause();
   if (audio.src && audio.readyState >= 1) audio.currentTime = START_AT;
   renderAt(audio.src && audio.readyState >= 1 ? START_AT : 0);
-  status.textContent = audio.src ? 'At 1:40. Ready when you are.' : 'Choose your recording to begin at 1:40.';
+  status.textContent = 'Ready when you are.';
 }
 
-playBtn.addEventListener('click', async () => {
-  if (!audio.src || selecting) return;
-  if (!audio.paused) {
-    pause();
-    return;
-  }
+async function play() {
+  if (!audio.src || playBtn.disabled) return;
   if (playPending) return;
-  if (audio.readyState >= 1 && (audio.ended || audio.currentTime < START_AT || audio.currentTime >= END_AT)) audio.currentTime = START_AT;
   const generation = playbackGeneration;
+  const target = previewTime ?? (audio.ended || audio.currentTime < START_AT || audio.currentTime >= segmentEnd() ? START_AT : audio.currentTime);
+  if (audio.readyState < 1 || audio.seeking || Math.abs(audio.currentTime - target) > 0.05) guardStartup(target);
+  if (generation !== playbackGeneration) return;
   playPending = true;
+  status.textContent = startup ? 'Loading the edit…' : 'Baka Bukas · Angela Ken';
   try {
     await audio.play();
     if (generation !== playbackGeneration) return;
-    status.textContent = 'Baka Bukas · Angela Ken';
+    finishStartup();
+    if (!startup) status.textContent = 'Baka Bukas · Angela Ken';
   } catch (err) {
-    if (generation === playbackGeneration) status.textContent = `Could not play audio: ${err.message}`;
+    if (generation === playbackGeneration) {
+      pause();
+      status.textContent = `Could not play the edit. Tap Play song to retry. ${err.message}`;
+    }
   } finally {
     playPending = false;
   }
+}
+
+playBtn.addEventListener('click', () => {
+  if (!audio.paused || playPending) pause();
+  else return play();
 });
 
 document.getElementById('resetBtn').addEventListener('click', reset);
-
-function loadRecording(url) {
-  pause();
-  playBtn.disabled = desktopOverlay;
-  seek.disabled = true;
-  audio.src = url;
-  audio.load();
-  status.textContent = 'Loading your recording…';
-}
-
-audioFile.addEventListener('change', () => {
-  const file = audioFile.files[0];
-  if (!file) return;
-  const previousUrl = localAudioUrl;
-  localAudioUrl = URL.createObjectURL(file);
-  loadRecording(localAudioUrl);
-  if (previousUrl) URL.revokeObjectURL(previousUrl);
-  audioFile.value = '';
-});
-
-document.getElementById('audioBtn').addEventListener('click', async () => {
-  if (selecting) return;
-  if (!desktopOverlay) {
-    audioFile.click();
-    return;
-  }
-  selecting = true;
-  try {
-    const url = await window.overlay.chooseAudio();
-    if (!url) return;
-    loadRecording(url);
-  } catch (err) {
-    status.textContent = `Could not open audio: ${err.message}`;
-  } finally {
-    selecting = false;
-  }
-});
 
 function recordingReady() {
   const valid = audio.duration > START_AT;
   playBtn.disabled = !valid;
   seek.disabled = !valid;
-  seek.max = String(Math.min(END_AT, audio.duration));
-  if (valid && playPending) {
-    // A phone may defer metadata until play() is called directly from a tap.
-    audio.currentTime = START_AT;
-    renderAt(START_AT);
+  if (valid && startup) {
+    finishStartup();
+    renderCurrent();
   } else if (valid) reset();
   else {
     pause();
     renderAt(0);
-    status.textContent = 'This recording ends before 1:40. Choose the original full recording.';
+    status.textContent = 'The recording could not load the edit. Please reload the page.';
   }
 }
 audio.addEventListener('loadedmetadata', recordingReady);
 audio.addEventListener('play', () => {
+  if (audio.paused) return;
+  if (!startup && audio.currentTime < START_AT) guardStartup(START_AT);
+  if (audio.paused) return;
   playBtn.textContent = 'Pause';
   playBtn.setAttribute('aria-pressed', 'true');
   startLoop();
 });
 audio.addEventListener('pause', () => {
+  if (!audio.paused) return;
   cancelLoop();
   renderCurrent();
   playBtn.textContent = 'Play song';
@@ -252,9 +271,13 @@ audio.addEventListener('pause', () => {
 });
 audio.addEventListener('seeking', renderCurrent);
 audio.addEventListener('seeked', () => {
+  finishStartup();
+  previewTime = null;
   renderCurrent();
   if (!audio.paused) startLoop();
 });
+audio.addEventListener('canplay', finishStartup);
+audio.addEventListener('playing', finishStartup);
 audio.addEventListener('timeupdate', () => {
   if (audio.currentTime >= END_AT && !audio.paused) startLoop();
   else if (audio.paused) renderCurrent();
@@ -268,13 +291,35 @@ audio.addEventListener('error', () => {
   pause();
   playBtn.disabled = true;
   seek.disabled = true;
-  status.textContent = 'This audio could not be loaded. Choose another recording.';
+  status.textContent = 'The song could not be loaded. Please reload the page.';
+});
+seek.addEventListener('pointerdown', () => {
+  if (seek.disabled) return;
+  const wasPlaying = !audio.paused || playPending;
+  pause();
+  draggingSeek = true;
+  resumeAfterScrub = wasPlaying;
 });
 seek.addEventListener('input', () => {
   if (!audio.src || audio.readyState < 1) return;
-  audio.currentTime = Number(seek.value);
+  const elapsed = Number(seek.value);
+  if (!Number.isFinite(elapsed)) return;
+  previewTime = Math.max(START_AT, Math.min(segmentEnd(), START_AT + elapsed));
+  audio.currentTime = previewTime;
   renderCurrent();
 });
+function finishScrub(resume = true) {
+  if (!draggingSeek) return;
+  draggingSeek = false;
+  const shouldPlay = resume && resumeAfterScrub;
+  resumeAfterScrub = false;
+  renderCurrent();
+  if (shouldPlay) void play();
+}
+seek.addEventListener('change', () => finishScrub());
+window.addEventListener('pointerup', () => finishScrub());
+window.addEventListener('pointercancel', () => finishScrub(false));
+window.addEventListener('blur', () => finishScrub(false));
 window.addEventListener('resize', renderCurrent);
 if (typeof ResizeObserver === 'function') {
   new ResizeObserver(renderCurrent).observe(stage);
@@ -288,5 +333,5 @@ renderAt(0);
 if (audio.readyState >= 1) recordingReady();
 else if (!desktopOverlay) {
   playBtn.disabled = false;
-  status.textContent = 'Tap Play song to load and begin at 1:40.';
+  status.textContent = 'Tap Play song to begin.';
 }

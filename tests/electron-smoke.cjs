@@ -22,7 +22,7 @@ app.on('browser-window-created', (_, win) => {
           throw new Error('Timed out waiting for playback state');
         };
         const pose = () => JSON.stringify([lyric.style.cssText, photos.map(p => p.style.cssText), units.map(u => u.style.cssText), photoBanks.map(b => b.images.map(image => image.style.cssText))]);
-        check(typeof window.overlay.chooseAudio === 'function', 'preload bridge unavailable');
+        check(window.overlay.desktop === true, 'preload bridge unavailable');
         check(getComputedStyle(document.body).backgroundColor === 'rgba(0, 0, 0, 0)', 'body must be transparent');
         check(getComputedStyle(document.getElementById('stage')).backgroundColor === 'rgba(0, 0, 0, 0)', 'stage must be transparent');
         check(photoBanks.length === 2 && photoBanks.every(b => b.images.length === 5), 'expected five images per person');

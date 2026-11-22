@@ -32,14 +32,12 @@
     <div class="heading">BAKA BUKAS <span>&lt; code in motion /&gt;</span></div>
     <p class="subtitle">A few memories. A little hope.</p>
     <div class="buttons">
-      <button id="audioBtn">Choose song</button>
-      <input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden>
       <button id="playBtn" class="primary" aria-pressed="false" disabled>Play song</button>
       <button id="resetBtn">Reset</button>
     </div>
     <div class="transport">
-      <input id="seek" type="range" min="100" max="160" step="0.01" value="100" aria-label="Position in original recording, seconds" disabled>
-      <output id="timeLabel" for="seek">1:40 / 2:40</output>
+      <input id="seek" type="range" min="0" max="60" step="0.01" value="0" aria-label="Position in edit, seconds" disabled>
+      <output id="timeLabel" for="seek">0:00 / 1:00</output>
     </div>
     <small class="status" id="status" role="status">Loading the recording from audio…</small>
     <small class="shortcuts">Ctrl + Shift + H · hide/show &nbsp; Ctrl + Shift + Q · quit</small>

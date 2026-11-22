@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, globalShortcut, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, screen, globalShortcut } = require('electron');
 const path = require('path');
 let win;
 function createWindow() {
@@ -15,9 +15,3 @@ function createWindow() {
 }
 app.whenReady().then(createWindow);
 app.on('will-quit', () => globalShortcut.unregisterAll());
-ipcMain.handle('choose-audio', async () => {
-  const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }] });
-  if (result.canceled || !result.filePaths.length) return null;
-  const { pathToFileURL } = require('url');
-  return pathToFileURL(result.filePaths[0]).href;
-});

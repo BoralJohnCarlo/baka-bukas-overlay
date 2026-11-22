@@ -6,7 +6,7 @@ A transparent Electron overlay for cinematic Polaroids and lyrics over your actu
 
 1. Run `npm install` if dependencies are not installed.
 2. Run `npm start` with VS Code behind the overlay.
-3. The recording in `audio/Angela Ken - 'Baka Bukas' Official Music Video.mp3` loads automatically. Select **Play song**. Use **Choose song** to select another file.
+3. The recording in `audio/Angela Ken - 'Baka Bukas' Official Music Video.mp3` loads automatically. Select **Play song** to play the fixed edit.
 
 The supplied audio file is read locally and never modified. Keep it in the `audio` folder; audio analysis tools and model files are not application dependencies.
 
@@ -18,22 +18,22 @@ In a browser, the page has a dark background and **Choose song** uses the device
 
 The browser layout reserves separate space for animation and touch controls on phones and tablets, respects display safe areas, and places controls beside the stage in short landscape windows. Photo sizes follow the available stage width and height. Very short windows can scroll to keep controls accessible. Playback pauses when the tab is hidden or the page is left. The Play button also works when a browser defers audio metadata until a user taps it.
 
-The Electron browser smoke test uses Chromium at 22 viewport sizes, from a narrow 280-pixel phone through 1366×1024 tablets, including portrait, landscape, rotation, and reduced viewport heights. It checks lyric and photo bounds, touch targets, horizontal overflow, hosted MP3 playback, and local-file playback. A unit test covers deferred-metadata startup. This Electron-only check does not emulate Safari/WebKit, device codecs, or native file-picker behavior; physical iOS/Android devices still need a listening and visual check. The supplied MP3 is the intended recording; playback of other file formats depends on the device's codecs.
+The Electron browser smoke test uses Chromium at 27 viewport sizes, from a narrow 280-pixel phone through 1366×1024 tablets, including portrait, landscape, rotation, and reduced viewport heights. It checks lyric and photo bounds, touch targets, horizontal overflow, hosted MP3 playback, and short-recording edge cases. A unit test covers deferred-metadata startup. This Electron-only check does not emulate Safari/WebKit, device codec behavior; physical iOS/Android devices still need a listening and visual check. Only the supplied MP3 is exposed by the player.
 
 Run `npm run test:mobile` for the HTTP browser smoke test (a hidden Electron window without the desktop preload bridge).
 
 Compact layouts keep the intro in a separate band below the lyrics. Short stages temporarily use smaller cards and a higher lyric position until the intro has faded, then restore the normal arrangement from audio time. The mobile tests check intro/photo and intro/lyric separation throughout the entrance.
 
-Optional cross-engine checks: install test tooling with `npm install --no-save --package-lock=false playwright`, run `npx playwright install chromium webkit`, then `npm run test:platforms`. This tests Android-style Chromium and iPhone/iPad-style WebKit device profiles, including touch playback, local audio selection, rotation, reduced motion, and simulated safe-area padding. These are browser emulations, not physical Android/iOS certification. `PLAYWRIGHT_MODULE` can point to an external Playwright installation instead. `MOBILE_PROFILE` selects one profile for a focused rerun. A running Android emulator can be checked with `npm run test:platforms -- --android`; set `ANDROID_SERIAL` to its ADB serial (default `emulator-5580`).
+Optional cross-engine checks: install test tooling with `npm install --no-save --package-lock=false playwright`, run `npx playwright install chromium webkit`, then `npm run test:platforms`. This tests Android-style Chromium and iPhone/iPad-style WebKit device profiles, including delayed cold startup, checks against unmuted playback before 1:40, real touch and keyboard slider input, replay, rotation, reduced motion, and simulated safe-area padding. These are browser emulations, not physical Android/iOS certification. `PLAYWRIGHT_MODULE` can point to an external Playwright installation instead. `MOBILE_PROFILE` selects one profile for a focused rerun. `MOBILE_TEST_URL` runs the same checks against a deployed site instead of the temporary local server. A running Android emulator can be checked with `npm run test:platforms -- --android`; set `ANDROID_SERIAL` to its ADB serial (default `emulator-5580`).
 
-The Windows WebKit port in this environment rejects local blob audio with `MEDIA_ERR_SRC_NOT_SUPPORTED`, reproduced with a standalone audio element outside the app. The platform suite explicitly reports that local-file case as unavailable after an independent probe; hosted MP3 playback is still checked. Its MP3 reset check allows a 25 ms readback tolerance because this port sometimes reports 100.01 seconds after a seek to 100; the application still requests exactly 100 seconds and the approved timeline is unchanged.
+The WebKit MP3 reset check allows a 25 ms readback tolerance because this port sometimes reports 100.01 seconds after a seek to 100; the application still requests exactly 100 seconds and the approved timeline is unchanged.
+
 
 ## Controls
 
-- **Choose song** selects a local MP3, WAV, OGG, or M4A recording.
-- **Play song / Pause** starts or resumes the selected recording and freezes all stage motion when paused.
-- **Reset** pauses and returns to exactly 1:40, with the intro ready to play.
-- The position slider seeks within the selected original-recording segment, updating the visuals immediately while playing or paused.
+- **Play song / Pause** starts or resumes the edit and freezes all stage motion when paused.
+- **Reset** pauses and returns to the edit start (1:40 in the original recording), with the intro ready to play.
+- The position slider and time display run from **0:00 to 1:00** for the edit. Touch dragging pauses motion to keep the thumb steady, then resumes only if playback was active before the drag; dragging while paused stays paused. Keyboard seeking and replay use the same original-recording clock.
 - **Ctrl+Shift+H** hides/shows the overlay; **Ctrl+Shift+Q** quits.
 
 The recording is the only animation clock. Recordings ending before 1:40 cannot play this segment; shorter recordings ending within the segment stop at their natural end without stretching or looping.

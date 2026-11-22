@@ -41,7 +41,7 @@ button.primary:hover:not(:disabled) { background: #e8cda7; }
 button:disabled, input:disabled { opacity: .4; cursor: default; }
 button:focus-visible, input:focus-visible { outline: 2px solid #eed7b5; outline-offset: 4px; }
 .transport { display: flex; align-items: center; gap: 12px; margin-top: 13px; }
-input[type='range'] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; width: 100%; height: 3px; margin: 8px 0; background: #ffffff24; border-radius: 2px; cursor: pointer; accent-color: var(--accent); }
+input[type='range'] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; width: 100%; height: 3px; margin: 8px 0; background: linear-gradient(to right, var(--accent) var(--progress, 0%), #ffffff24 var(--progress, 0%)); border-radius: 2px; cursor: pointer; accent-color: var(--accent); }
 input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 output { font: 9px 'Courier New', monospace; color: #d2c4af; white-space: nowrap; }
 .status { display: block; color: #b4afa6; font-size: 10px; line-height: 1.5; margin-top: 7px; min-height: 15px; }
@@ -83,9 +83,9 @@ html.browser-mode, html.browser-mode body {
 .browser-mode .lyric { font-size: clamp(23px, 4vw, 36px); }
 .browser-mode .lyric.emphasis { font-size: clamp(26px, 4.5vw, 40px); }
 .browser-mode input[type='range'] { height: 44px; margin: 0; background: transparent; }
-.browser-mode input[type='range']::-webkit-slider-runnable-track { height: 4px; background: #ffffff36; border-radius: 2px; }
+.browser-mode input[type='range']::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(to right, var(--accent) var(--progress, 0%), #ffffff36 var(--progress, 0%)); border-radius: 2px; }
 .browser-mode input[type='range']::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; }
-.browser-mode input[type='range']::-moz-range-track { height: 4px; background: #ffffff36; }
+.browser-mode input[type='range']::-moz-range-track { height: 4px; background: linear-gradient(to right, var(--accent) var(--progress, 0%), #ffffff36 var(--progress, 0%)); }
 .browser-mode input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border: 0; background: var(--accent); }
 .browser-mode .shortcuts { display: none; }
 button, input[type='range'] { touch-action: manipulation; }
@@ -108,9 +108,9 @@ input[hidden] { display: none; }
   button { min-height: 44px; padding: 10px 12px; }
   .buttons button { flex: 1; }
   input[type='range'] { height: 44px; margin: 0; background: transparent; }
-  input[type='range']::-webkit-slider-runnable-track { height: 4px; background: #ffffff36; border-radius: 2px; }
+  input[type='range']::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(to right, var(--accent) var(--progress, 0%), #ffffff36 var(--progress, 0%)); border-radius: 2px; }
   input[type='range']::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; }
-  input[type='range']::-moz-range-track { height: 4px; background: #ffffff36; border-radius: 2px; }
+  input[type='range']::-moz-range-track { height: 4px; background: linear-gradient(to right, var(--accent) var(--progress, 0%), #ffffff36 var(--progress, 0%)); border-radius: 2px; }
   input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border: 0; background: var(--accent); }
   .transport { margin-top: 4px; }
   .status { overflow-wrap: anywhere; }
@@ -132,7 +132,7 @@ input[hidden] { display: none; }
   .controls { width: 260px; max-width: 42%; margin: 8px 12px 8px 0; }
   .subtitle { display: none; }
   .buttons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  #audioBtn { grid-column: 1 / -1; }
+  .buttons button { min-width: 0; padding-inline: 8px; }
   .polaroid { width: clamp(64px, 22vh, 105px); padding: 5px 5px 8px; }
   .handwriting { font-size: 10px; min-height: 14px; margin-top: 5px; }
   .photo-number { display: none; }
@@ -142,4 +142,8 @@ input[hidden] { display: none; }
   .browser-mode .lyric.emphasis { font-size: clamp(20px, 5.7vh, 28px); }
   .intro span { font-size: 8px; }
   .intro em { font-size: 13px; }
+}
+
+@media (orientation: landscape) and (max-height: 260px) {
+  .browser-mode .controls { align-self: flex-start; }
 }
