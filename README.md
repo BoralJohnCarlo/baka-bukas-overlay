@@ -12,7 +12,7 @@ The supplied audio file is read locally and never modified. Keep it in the `audi
 
 ## Mobile and browser use
 
-Serve `index.html`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her` folders together on a static web host. The host must support media byte-range requests so the recording can seek to 1:40. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
+Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her` folders together on a static web host. The host must support media byte-range requests so the recording can seek to 1:40. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
 
 In a browser, the page has a dark background and **Choose song** uses the device's file picker; the selected file stays local. Tap **Play song** to begin. The supplied recording and lyric timing cover 1:40–2:40; choosing a different song does not realign the lyrics. Desktop overlay transparency and global shortcuts are available in Electron only.
 
