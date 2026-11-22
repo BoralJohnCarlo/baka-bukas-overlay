@@ -1,0 +1,8 @@
+{
+  "name": "baka-bukas-overlay",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {"start": "electron .", "test": "node --test tests/sync.test.cjs", "test:electron": "node tests/run-electron.cjs", "test:mobile": "node tests/run-electron.cjs mobile-smoke.cjs", "test:platforms": "node tests/mobile-platforms.cjs"},
+  "devDependencies": {"electron": "^33.4.11"}
+}

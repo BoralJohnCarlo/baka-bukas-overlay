@@ -1,0 +1,88 @@
+{
+  "start": 100,
+  "end": 160,
+  "cues": [
+    {
+      "time": 100,
+      "text": "Patapos na ang kanta",
+      "photos": [
+        0
+      ]
+    },
+    {
+      "time": 104,
+      "text": "Nasa'n ka na ba, sinta?",
+      "photos": [
+        0,
+        1
+      ]
+    },
+    {
+      "time": 108,
+      "text": "Tiyak na ba ang bukas na nandiyan ka na?",
+      "photos": [
+        1
+      ]
+    },
+    {
+      "time": 113,
+      "text": "Ibahin mo ako sa milyong mata nila",
+      "photos": [
+        0,
+        1
+      ]
+    },
+    {
+      "time": 119,
+      "text": "Piliin ako, sana bukas ay ako na",
+      "photos": [
+        0
+      ]
+    },
+    {
+      "time": 125,
+      "text": "Hayaan akong ipadama na iba ka",
+      "photos": [
+        1
+      ]
+    },
+    {
+      "time": 131,
+      "text": "Baka bukas, baka bukas",
+      "photos": [
+        0,
+        1
+      ]
+    },
+    {
+      "time": 137,
+      "text": "Ibahin mo ako sa milyong mata nila",
+      "photos": [
+        0
+      ]
+    },
+    {
+      "time": 143,
+      "text": "Piliin ako, sana bukas ay ako na",
+      "photos": [
+        0,
+        1
+      ]
+    },
+    {
+      "time": 149,
+      "text": "Hayaan akong ipadama na iba ka",
+      "photos": [
+        1
+      ]
+    },
+    {
+      "time": 155,
+      "text": "Baka bukas, baka bukas",
+      "photos": [
+        0,
+        1
+      ]
+    }
+  ]
+}

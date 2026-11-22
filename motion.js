@@ -1,0 +1,87 @@
+// Stateless choreography, sampled from original audio time. No animation queues.
+const arrangements = [
+  { name: 'beside', text: [67, 51, 43], cards: [[23, 43, -9], [79, 35, 8]], enter: 'fall', exit: 'float', type: 'words' },
+  { name: 'framed', text: [50, 66, 58], cards: [[23, 33, -11], [77, 34, 9]], enter: 'slide', exit: 'turn', type: 'letters' },
+  { name: 'aside', text: [32, 51, 46], cards: [[22, 34, -8], [77, 44, 7]], enter: 'depth', exit: 'depth', type: 'lift' },
+  { name: 'gathered', text: [50, 65, 66], cards: [[43, 30, -12], [58, 32, 10]], enter: 'fall', exit: 'stack', type: 'words' },
+  { name: 'promise', text: [64, 48, 46], cards: [[22, 44, -7], [80, 30, 8]], enter: 'slide', exit: 'float', type: 'lift', strong: true },
+  { name: 'corner', text: [39, 59, 57], cards: [[20, 31, -8], [79, 29, 11]], enter: 'depth', exit: 'turn', type: 'letters' },
+  { name: 'refrain', text: [50, 49, 60], cards: [[17, 30, -12], [83, 64, 12]], enter: 'slide', exit: 'depth', type: 'words', strong: true },
+  { name: 'beside', text: [65, 50, 48], cards: [[23, 41, -7], [79, 35, 8]], enter: 'fall', exit: 'stack', type: 'letters' },
+  { name: 'framed', text: [50, 64, 64], cards: [[24, 31, -9], [76, 33, 10]], enter: 'depth', exit: 'float', type: 'lift', strong: true },
+  { name: 'aside', text: [33, 51, 48], cards: [[20, 32, -8], [78, 43, 8]], enter: 'slide', exit: 'turn', type: 'words' },
+  { name: 'farewell', text: [50, 60, 66], cards: [[39, 29, -10], [62, 31, 9]], enter: 'fall', exit: 'stack', type: 'letters', strong: true }
+];
+const clamp = value => Math.max(0, Math.min(1, value));
+const mix = (a, b, t) => a + (b - a) * t;
+const easeOut = t => 1 - Math.pow(1 - clamp(t), 4);
+const smooth = t => { t = clamp(t); return t * t * (3 - 2 * t); };
+
+function cardPose(index, card) {
+  const [x, y, rotation] = arrangements[index].cards[card];
+  return { x, y, rotation, dx: 0, dy: 0, tilt: 0, scale: 1, opacity: 1 };
+}
+
+function displaced(pose, kind, card, exiting = false) {
+  const side = card === 0 ? -1 : 1;
+  const result = { ...pose, opacity: 0 };
+  if (kind === 'fall') Object.assign(result, { dy: -180, rotation: pose.rotation + side * 23, tilt: -22, scale: 1.06 });
+  if (kind === 'slide' || kind === 'turn') Object.assign(result, { dx: side * 230, dy: exiting ? 70 : 30, rotation: side * 32 });
+  if (kind === 'depth') Object.assign(result, { scale: 0.55, tilt: 30, dy: -25 });
+  if (kind === 'float') Object.assign(result, { dy: -110, rotation: pose.rotation + side * 7 });
+  if (kind === 'stack') Object.assign(result, { x: 50, y: 32, rotation: side * 2, scale: 0.85 });
+  return result;
+}
+
+function sampleCard(seconds, index, card, reducedMotion) {
+  const current = cues[index].photos.includes(card);
+  const previous = index > 0 && cues[index - 1].photos.includes(card);
+  const age = seconds - cues[index].time;
+  const progress = reducedMotion ? 1 : easeOut((age - (!previous ? card * 0.13 : 0)) / 1.15);
+  const target = cardPose(index, card);
+  let from, to;
+  if (current) {
+    from = previous ? cardPose(index - 1, card) : displaced(target, arrangements[index].enter, card);
+    to = target;
+  } else if (previous) {
+    from = cardPose(index - 1, card);
+    to = displaced(from, arrangements[index - 1].exit, card, true);
+  } else return { ...target, opacity: 0 };
+  if (previous && !reducedMotion) {
+    const previousAge = cues[index].time - cues[index - 1].time;
+    from.dy += Math.sin(previousAge * 0.85 + card * 2) * 5;
+    from.rotation += Math.sin(previousAge * 0.55 + card) * 0.65;
+  }
+  const result = {};
+  for (const key of Object.keys(target)) result[key] = mix(from[key], to[key], progress);
+  if (!reducedMotion) {
+    result.dy += Math.sin(age * 0.85 + card * 2) * 5 * progress;
+    result.rotation += Math.sin(age * 0.55 + card) * 0.65 * progress;
+  }
+  const farewell = smooth((seconds - (END_AT - 2)) / 2);
+  if (!reducedMotion && farewell > 0) {
+    const exitPose = displaced(result, arrangements[index].exit, card, true);
+    for (const key of ['x', 'y', 'rotation', 'dx', 'dy', 'tilt', 'scale']) {
+      result[key] = mix(result[key], exitPose[key], farewell);
+    }
+  }
+  result.opacity *= 1 - farewell;
+  return result;
+}
+
+function sampleText(seconds, index, unit, count, reducedMotion) {
+  const age = seconds - cues[index].time;
+  const duration = (cues[index + 1]?.time ?? END_AT) - cues[index].time;
+  // Stagger only the styling: every word is legible at the cue boundary.
+  const progress = reducedMotion ? 1 : easeOut((age - unit / Math.max(count, 1) * 0.24) / 0.65);
+  const exit = reducedMotion ? 0 : smooth((age - duration + 0.28) / 0.28);
+  const type = arrangements[index].type;
+  const variant = index % 4;
+  return {
+    opacity: (0.78 + 0.22 * progress) * (1 - exit * 0.32),
+    y: (1 - progress) * (type === 'lift' ? 18 : 10) - (variant === 1 ? exit * 8 : 0),
+    x: variant === 0 ? exit * (unit % 2 ? 5 : -5) : 0,
+    rotation: (1 - progress) * (unit % 2 ? 2 : -2) + (variant === 0 ? exit * (unit % 2 ? 2 : -2) : 0),
+    scale: 1 + (1 - progress) * 0.035 - (variant === 3 ? exit * 0.035 : 0)
+  };
+}

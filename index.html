@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html lang="fil">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; media-src 'self' file: blob:; connect-src 'none'">
+  <title>Baka Bukas — Code in Motion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="stage" aria-label="Baka Bukas lyric animation">
+    <div class="intro" id="intro" aria-hidden="true">
+      <span>A moment, kept</span>
+      <em>baka bukas…</em>
+    </div>
+    <div class="polaroid one" aria-hidden="true">
+      <!-- The numbered me/ images are preloaded here by renderer.js. -->
+      <div class="photo"></div>
+      <div class="handwriting">baka bukas…</div>
+      <span class="photo-number">01</span>
+    </div>
+    <div class="polaroid two" aria-hidden="true">
+      <!-- The numbered her/ images are preloaded here by renderer.js. -->
+      <div class="photo"></div>
+      <div class="handwriting">tayo naman.</div>
+      <span class="photo-number">02</span>
+    </div>
+    <div class="lyric" id="lyric" role="img" aria-label=""></div>
+  </main>
+  <section class="controls" aria-label="Playback controls" lang="en">
+    <div class="heading">BAKA BUKAS <span>&lt; code in motion /&gt;</span></div>
+    <p class="subtitle">A few memories. A little hope.</p>
+    <div class="buttons">
+      <button id="audioBtn">Choose song</button>
+      <input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden>
+      <button id="playBtn" class="primary" aria-pressed="false" disabled>Play song</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div class="transport">
+      <input id="seek" type="range" min="100" max="160" step="0.01" value="100" aria-label="Position in original recording, seconds" disabled>
+      <output id="timeLabel" for="seek">1:40 / 2:40</output>
+    </div>
+    <small class="status" id="status" role="status">Loading the recording from audio…</small>
+    <small class="shortcuts">Ctrl + Shift + H · hide/show &nbsp; Ctrl + Shift + Q · quit</small>
+  </section>
+  <audio id="audio" preload="auto" playsinline src="audio/Angela Ken - 'Baka Bukas' Official Music Video.mp3"></audio>
+  <script src="timeline.js"></script>
+  <script src="motion.js"></script>
+  <script src="photo-sequence.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

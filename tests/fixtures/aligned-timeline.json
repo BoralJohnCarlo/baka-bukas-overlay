@@ -1,0 +1,98 @@
+{
+  "sourceFile": "audio/Angela Ken - 'Baka Bukas' Official Music Video.mp3",
+  "sha256": "E8835CDCAD7F8D731069785D7CBDEE834ECFDB903DC1EE17BA44DB31DDE36898",
+  "approvedDate": "2026-11-22",
+  "start": 100,
+  "end": 160,
+  "method": "Local whisper.cpp b5907, multilingual small-q5_1, Tagalog, DTW enabled with flash attention disabled. Opening rechecked with the existing lyric text as a prompt. Times are phrase-start estimates from first-token alignment, not human-verified or sample-accurate vocal onsets. Audio decoded to temporary 16 kHz mono PCM; original MP3 untouched.",
+  "cues": [
+    {
+      "index": 0,
+      "originalTime": 100,
+      "time": 100.18,
+      "cropStartSeconds": 99,
+      "tokenFrame10ms": 118,
+      "recognizedToken": " pat"
+    },
+    {
+      "index": 1,
+      "originalTime": 104,
+      "time": 103.08,
+      "cropStartSeconds": 99,
+      "tokenFrame10ms": 408,
+      "recognizedToken": " Nas"
+    },
+    {
+      "index": 2,
+      "originalTime": 108,
+      "time": 105.9,
+      "cropStartSeconds": 99,
+      "tokenFrame10ms": 690,
+      "recognizedToken": " Ti"
+    },
+    {
+      "index": 3,
+      "originalTime": 113,
+      "time": 113.2,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 1820,
+      "recognizedToken": " I"
+    },
+    {
+      "index": 4,
+      "originalTime": 119,
+      "time": 119.1,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 2410,
+      "recognizedToken": " M"
+    },
+    {
+      "index": 5,
+      "originalTime": 125,
+      "time": 124.88,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 2988,
+      "recognizedToken": " Hay"
+    },
+    {
+      "index": 6,
+      "originalTime": 131,
+      "time": 132.14,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 3714,
+      "recognizedToken": " B"
+    },
+    {
+      "index": 7,
+      "originalTime": 137,
+      "time": 135.56,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 4056,
+      "recognizedToken": " I"
+    },
+    {
+      "index": 8,
+      "originalTime": 143,
+      "time": 141.38,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 4638,
+      "recognizedToken": " M"
+    },
+    {
+      "index": 9,
+      "originalTime": 149,
+      "time": 147.16,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 5216,
+      "recognizedToken": " Hay"
+    },
+    {
+      "index": 10,
+      "originalTime": 155,
+      "time": 154.62,
+      "cropStartSeconds": 95,
+      "tokenFrame10ms": 5962,
+      "recognizedToken": " B"
+    }
+  ]
+}

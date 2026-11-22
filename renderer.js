@@ -1,0 +1,292 @@
+const audio = document.getElementById('audio');
+const lyric = document.getElementById('lyric');
+const photos = [...document.querySelectorAll('.polaroid')];
+const playBtn = document.getElementById('playBtn');
+const seek = document.getElementById('seek');
+const timeLabel = document.getElementById('timeLabel');
+const status = document.getElementById('status');
+const intro = document.getElementById('intro');
+const stage = document.getElementById('stage');
+const audioFile = document.getElementById('audioFile');
+const desktopOverlay = typeof window.overlay?.chooseAudio === 'function';
+document.documentElement.classList.toggle('browser-mode', !desktopOverlay);
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const photoBanks = photos.map((photo, card) => {
+  const mount = photo.querySelector('.photo');
+  const images = photoLibrary[card].map((asset, i) => {
+    const image = document.createElement('img');
+    image.alt = '';
+    image.draggable = false;
+    image.loading = 'eager';
+    image.decoding = 'async';
+    image.dataset.number = String(i + 1);
+    image.style.objectPosition = asset.position;
+    image.style.opacity = '0';
+    image.src = asset.src;
+    mount.append(image);
+    if (typeof image.decode === 'function') void image.decode().catch(() => {});
+    return image;
+  });
+  return { images, caption: photo.querySelector('.handwriting'), number: photo.querySelector('.photo-number') };
+});
+let frame = null;
+let lastCue = -1;
+let units = [];
+let selecting = false;
+let playPending = false;
+let playbackGeneration = 0;
+let localAudioUrl = null;
+
+const formatTime = time => `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+
+function showCue(index) {
+  lyric.replaceChildren();
+  units = [];
+  if (index < 0) return;
+  const direction = arrangements[index];
+  lyric.dataset.composition = direction.name;
+  lyric.classList.toggle('emphasis', Boolean(direction.strong));
+  lyric.setAttribute('aria-label', cues[index].text);
+  for (const [wordIndex, word] of cues[index].text.split(' ').entries()) {
+    if (wordIndex) lyric.append(document.createTextNode(' '));
+    const wrapper = document.createElement('span');
+    wrapper.className = 'word';
+    wrapper.setAttribute('aria-hidden', 'true');
+    for (const part of direction.type === 'letters' ? [...word] : [word]) {
+      const span = document.createElement('span');
+      span.className = 'unit';
+      span.textContent = part;
+      wrapper.append(span);
+      units.push(span);
+    }
+    lyric.append(wrapper);
+  }
+}
+
+function renderAt(seconds) {
+  const stageWidth = stage.clientWidth;
+  const stageHeight = stage.clientHeight;
+  const compact = !desktopOverlay || stageWidth < 760;
+  const shortStage = compact && stageHeight < 400;
+  stage.classList.toggle('compact-stage', compact);
+  const index = cueAt(seconds);
+  if (index !== lastCue) {
+    lastCue = index;
+    showCue(index);
+  }
+  seek.value = Math.max(START_AT, Math.min(END_AT, seconds));
+  timeLabel.textContent = `${formatTime(audio.src ? seconds : START_AT)} / ${formatTime(END_AT)}`;
+  const introAge = seconds - START_AT;
+  intro.style.opacity = String(introAge >= 0 && introAge < 3.5 ? (1 - smooth((introAge - 2) / 1.5)) * 0.85 : 0);
+  if (index < 0) {
+    lyric.style.opacity = '0';
+    lyric.removeAttribute('aria-label');
+    photos.forEach(photo => { photo.style.opacity = '0'; });
+    return;
+  }
+  const direction = arrangements[index];
+
+  const introLayout = shortStage ? 1 - smooth((introAge - 3.5) / 0.6) : 0;
+  const cardWidth = compact ? `${Math.max(52, Math.min(224, stageWidth * 0.36, stageHeight * (0.30 - 0.07 * introLayout)))}px` : '';
+  const [x, y, width] = compact ? [50, 72 - 12 * introLayout, 90] : direction.text;
+  lyric.style.left = `${x}%`;
+  lyric.style.top = `${y}%`;
+  lyric.style.width = `${width}%`;
+  lyric.style.opacity = String(1 - smooth((seconds - (END_AT - 2)) / 2));
+  units.forEach((unit, i) => {
+    const pose = sampleText(seconds, index, i, units.length, reducedMotion.matches);
+    unit.style.opacity = String(pose.opacity);
+    unit.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rotation}deg) scale(${pose.scale})`;
+  });
+  photos.forEach((photo, card) => {
+    const content = samplePhotoContent(seconds, index, card, reducedMotion.matches);
+    const bank = photoBanks[card];
+    bank.images.forEach((image, i) => {
+      image.style.opacity = String(i + 1 === content.number ? content.progress : i + 1 === content.previous && content.progress < 1 ? 1 : 0);
+    });
+    if (bank.caption.textContent !== content.caption) bank.caption.textContent = content.caption;
+    const number = content.number === null ? '' : String(content.number).padStart(2, '0');
+    if (bank.number.textContent !== number) bank.number.textContent = number;
+    const pose = sampleCard(seconds, index, card, reducedMotion.matches);
+    photo.style.opacity = String(pose.opacity);
+    const cardX = compact ? (card === 0 ? 26 : 74) : pose.x;
+    const cardY = compact ? 32 - 4 * introLayout : pose.y;
+    if (photo.style.width !== cardWidth) photo.style.width = cardWidth;
+    photo.style.left = `${cardX}%`;
+    photo.style.top = `${cardY}%`;
+    // Keep the photograph readable and use a flat transform once depth motion settles.
+    const depth = Math.abs(pose.tilt) > 0.01 ? ` perspective(900px) rotateY(${pose.tilt}deg)` : '';
+    const scale = pose.scale === 1 ? '' : ` scale(${pose.scale})`;
+    photo.style.transform = `translate(-50%, -50%) translate(${pose.dx}px, ${pose.dy}px)${depth} rotate(${pose.rotation * 0.35}deg)${scale}`;
+  });
+}
+
+function cancelLoop() {
+  if (frame !== null) cancelAnimationFrame(frame);
+  frame = null;
+}
+
+function renderCurrent() {
+  renderAt(audio.ended ? END_AT : audio.currentTime);
+}
+
+function tick() {
+  frame = null;
+  renderCurrent();
+  if (audio.currentTime >= END_AT || audio.ended) {
+    audio.pause();
+    status.textContent = 'A little hope, until tomorrow. Replay when you’re ready.';
+    return;
+  }
+  if (!audio.paused) frame = requestAnimationFrame(tick);
+}
+
+function startLoop() {
+  cancelLoop();
+  tick();
+}
+
+function pause() {
+  playbackGeneration++;
+  audio.pause();
+  cancelLoop();
+  renderCurrent();
+  playBtn.textContent = 'Play song';
+  playBtn.setAttribute('aria-pressed', 'false');
+}
+
+function reset() {
+  pause();
+  if (audio.src && audio.readyState >= 1) audio.currentTime = START_AT;
+  renderAt(audio.src && audio.readyState >= 1 ? START_AT : 0);
+  status.textContent = audio.src ? 'At 1:40. Ready when you are.' : 'Choose your recording to begin at 1:40.';
+}
+
+playBtn.addEventListener('click', async () => {
+  if (!audio.src || selecting) return;
+  if (!audio.paused) {
+    pause();
+    return;
+  }
+  if (playPending) return;
+  if (audio.readyState >= 1 && (audio.ended || audio.currentTime < START_AT || audio.currentTime >= END_AT)) audio.currentTime = START_AT;
+  const generation = playbackGeneration;
+  playPending = true;
+  try {
+    await audio.play();
+    if (generation !== playbackGeneration) return;
+    status.textContent = 'Baka Bukas · Angela Ken';
+  } catch (err) {
+    if (generation === playbackGeneration) status.textContent = `Could not play audio: ${err.message}`;
+  } finally {
+    playPending = false;
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click', reset);
+
+function loadRecording(url) {
+  pause();
+  playBtn.disabled = desktopOverlay;
+  seek.disabled = true;
+  audio.src = url;
+  audio.load();
+  status.textContent = 'Loading your recording…';
+}
+
+audioFile.addEventListener('change', () => {
+  const file = audioFile.files[0];
+  if (!file) return;
+  const previousUrl = localAudioUrl;
+  localAudioUrl = URL.createObjectURL(file);
+  loadRecording(localAudioUrl);
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  audioFile.value = '';
+});
+
+document.getElementById('audioBtn').addEventListener('click', async () => {
+  if (selecting) return;
+  if (!desktopOverlay) {
+    audioFile.click();
+    return;
+  }
+  selecting = true;
+  try {
+    const url = await window.overlay.chooseAudio();
+    if (!url) return;
+    loadRecording(url);
+  } catch (err) {
+    status.textContent = `Could not open audio: ${err.message}`;
+  } finally {
+    selecting = false;
+  }
+});
+
+function recordingReady() {
+  const valid = audio.duration > START_AT;
+  playBtn.disabled = !valid;
+  seek.disabled = !valid;
+  seek.max = String(Math.min(END_AT, audio.duration));
+  if (valid && playPending) {
+    // A phone may defer metadata until play() is called directly from a tap.
+    audio.currentTime = START_AT;
+    renderAt(START_AT);
+  } else if (valid) reset();
+  else {
+    pause();
+    renderAt(0);
+    status.textContent = 'This recording ends before 1:40. Choose the original full recording.';
+  }
+}
+audio.addEventListener('loadedmetadata', recordingReady);
+audio.addEventListener('play', () => {
+  playBtn.textContent = 'Pause';
+  playBtn.setAttribute('aria-pressed', 'true');
+  startLoop();
+});
+audio.addEventListener('pause', () => {
+  cancelLoop();
+  renderCurrent();
+  playBtn.textContent = 'Play song';
+  playBtn.setAttribute('aria-pressed', 'false');
+});
+audio.addEventListener('seeking', renderCurrent);
+audio.addEventListener('seeked', () => {
+  renderCurrent();
+  if (!audio.paused) startLoop();
+});
+audio.addEventListener('timeupdate', () => {
+  if (audio.currentTime >= END_AT && !audio.paused) startLoop();
+  else if (audio.paused) renderCurrent();
+});
+audio.addEventListener('ended', () => {
+  pause();
+  renderAt(END_AT);
+  status.textContent = 'Recording ended. Ready to replay.';
+});
+audio.addEventListener('error', () => {
+  pause();
+  playBtn.disabled = true;
+  seek.disabled = true;
+  status.textContent = 'This audio could not be loaded. Choose another recording.';
+});
+seek.addEventListener('input', () => {
+  if (!audio.src || audio.readyState < 1) return;
+  audio.currentTime = Number(seek.value);
+  renderCurrent();
+});
+window.addEventListener('resize', renderCurrent);
+if (typeof ResizeObserver === 'function') {
+  new ResizeObserver(renderCurrent).observe(stage);
+}
+reducedMotion.addEventListener('change', renderCurrent);
+window.addEventListener('pagehide', pause);
+document.addEventListener('visibilitychange', () => {
+  if (!desktopOverlay && document.hidden) pause();
+});
+renderAt(0);
+if (audio.readyState >= 1) recordingReady();
+else if (!desktopOverlay) {
+  playBtn.disabled = false;
+  status.textContent = 'Tap Play song to load and begin at 1:40.';
+}
