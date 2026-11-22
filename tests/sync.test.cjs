@@ -202,6 +202,18 @@ test('mobile clip starts audibly without an initial seek, preserving the recordi
   assert.equal(s.run('recordingTime()'), 100);
 });
 
+test('preloaded mobile clip tolerates decoder rounding without seeking, while Reset stays exact', async () => {
+  const s = setup({ browser: true });
+  s.audio.src = 'https://example.test/audio/edit.mp3';
+  s.audio.duration = 60.055;
+  s.audio.currentTime = 0.01;
+  await s.load();
+  assert.equal(s.audio.currentTime, 0.01);
+  assert.equal(s.audio.paused, true);
+  await s.ids.resetBtn.emit('click');
+  assert.equal(s.audio.currentTime, 0);
+});
+
 test('cold playback remains muted until the requested edit position is confirmed', async () => {
   const s = setup({ browser: true });
   let requested = 0;

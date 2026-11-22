@@ -206,12 +206,13 @@ function pause() {
   playBtn.setAttribute('aria-pressed', 'false');
 }
 
-function reset() {
+function reset({ initializing = false } = {}) {
   draggingSeek = false;
   resumeAfterScrub = false;
   previewTime = null;
   pause();
-  if (audio.src && audio.readyState >= 1 && recordingTime() !== START_AT) seekRecording(START_AT);
+  const atClipStart = initializing && recordingOffset() > 0 && audio.currentTime < 0.05;
+  if (audio.src && audio.readyState >= 1 && recordingTime() !== START_AT && !atClipStart) seekRecording(START_AT);
   renderAt(audio.src && audio.readyState >= 1 ? START_AT : 0);
   status.textContent = 'Ready when you are.';
 }
@@ -254,7 +255,7 @@ function recordingReady() {
   if (valid && startup) {
     finishStartup();
     renderCurrent();
-  } else if (valid) reset();
+  } else if (valid) reset({ initializing: true });
   else {
     pause();
     renderAt(0);
