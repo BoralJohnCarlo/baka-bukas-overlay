@@ -1,0 +1,6 @@
+node_modules/
+tests/
+main.js
+preload.js
+README.md
+*.bundle
