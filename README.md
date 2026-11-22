@@ -1,4 +1,4 @@
-﻿# Baka Bukas — Code in Motion
+# Baka Bukas — Code in Motion
 
 A transparent Electron overlay for cinematic Polaroids and lyrics over your actual VS Code editor. No editor screenshot, full-screen background, external fonts, or additional runtime dependencies.
 
@@ -12,9 +12,9 @@ The supplied audio file is read locally and never modified. Keep it in the `audi
 
 ## Mobile and browser use
 
-Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her` folders together on a static web host. The host must support media byte-range requests so the recording can seek to 1:40. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
+Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her` folders together on a static web host. Browsers play `audio/edit.mp3`, a 60-second derivative of the original recording from 1:40 to 2:40, without an initial seek. Byte-range support is still recommended for slider seeking. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
 
-In a browser, the page has a dark background and **Choose song** uses the device's file picker; the selected file stays local. Tap **Play song** to begin. The supplied recording and lyric timing cover 1:40–2:40; choosing a different song does not realign the lyrics. Desktop overlay transparency and global shortcuts are available in Electron only.
+In a browser, the page has a dark background. Tap **Play song** to begin the fixed edit. There is no song picker. The browser clip maps its 0:00–1:00 media clock to the original 1:40–2:40 lyric timeline; the original recording stays unchanged. A cold start neither seeks nor starts muted, avoiding mobile Safari seek waits and asynchronous unmute restrictions. Desktop overlay transparency and global shortcuts are available in Electron only.
 
 The browser layout reserves separate space for animation and touch controls on phones and tablets, respects display safe areas, and places controls beside the stage in short landscape windows. Photo sizes follow the available stage width and height. Very short windows can scroll to keep controls accessible. Playback pauses when the tab is hidden or the page is left. The Play button also works when a browser defers audio metadata until a user taps it.
 
@@ -24,7 +24,7 @@ Run `npm run test:mobile` for the HTTP browser smoke test (a hidden Electron win
 
 Compact layouts keep the intro in a separate band below the lyrics. Short stages temporarily use smaller cards and a higher lyric position until the intro has faded, then restore the normal arrangement from audio time. The mobile tests check intro/photo and intro/lyric separation throughout the entrance.
 
-Optional cross-engine checks: install test tooling with `npm install --no-save --package-lock=false playwright`, run `npx playwright install chromium webkit`, then `npm run test:platforms`. This tests Android-style Chromium and iPhone/iPad-style WebKit device profiles, including delayed cold startup, checks against unmuted playback before 1:40, real touch and keyboard slider input, replay, rotation, reduced motion, and simulated safe-area padding. These are browser emulations, not physical Android/iOS certification. `PLAYWRIGHT_MODULE` can point to an external Playwright installation instead. `MOBILE_PROFILE` selects one profile for a focused rerun. `MOBILE_TEST_URL` runs the same checks against a deployed site instead of the temporary local server. A running Android emulator can be checked with `npm run test:platforms -- --android`; set `ANDROID_SERIAL` to its ADB serial (default `emulator-5580`).
+Optional cross-engine checks: install test tooling with `npm install --no-save --package-lock=false playwright`, run `npx playwright install chromium webkit`, then `npm run test:platforms`. This tests Android-style Chromium and iPhone/iPad-style WebKit device profiles, including delayed cold startup, checks against unmuted playback before 1:40, real touch and keyboard slider input, replay, rotation, reduced motion, and simulated safe-area padding. These are browser emulations, not physical Android/iOS certification. `PLAYWRIGHT_MODULE` can point to an external Playwright installation instead. `MOBILE_PROFILE` selects one profile for a focused rerun, including `iPhone 12`. Set `SLOW_MEDIA=1` to stream audio at about 64 KB/s and verify playback starts before the full download. `MOBILE_TEST_URL` runs the same checks against a deployed site instead of the temporary local server. A running Android emulator can be checked with `npm run test:platforms -- --android`; set `ANDROID_SERIAL` to its ADB serial (default `emulator-5580`).
 
 The WebKit MP3 reset check allows a 25 ms readback tolerance because this port sometimes reports 100.01 seconds after a seek to 100; the application still requests exactly 100 seconds and the approved timeline is unchanged.
 
@@ -77,3 +77,5 @@ An absent card keeps its previous image while it exits. Seeking reconstructs the
 - `npm run test:electron` launches the actual Electron entry point, verifies that the local MP3 loads at 100 seconds, and crosses every lyric boundary during real MP3 playback (muted). It also tests the preload bridge, transparency, shortcuts, and media controls with a temporary silent WAV. It saves a preview in the temporary test directory and exits. The test needs the supplied recording and desktop application launch permissions.
 
 Automated tests verify playback behavior and protect the approved alignment from regressions. They cannot independently judge the musical accuracy of model-estimated timestamps; a final listening pass can identify any small vocal-onset adjustments.
+
+The browser clip was generated using FFmpeg with: `-i ORIGINAL.mp3 -ss 100 -t 60 -map_metadata -1 -c:a libmp3lame -b:a 192k -write_xing 1 audio/edit.mp3`. The seek is applied after input decoding for precise trimming. MP3 gapless metadata preserves encoder-delay compensation. No FFmpeg installation is required to run the website.

@@ -168,6 +168,40 @@ test('mobile placement follows available stage space without changing audio timi
   assert.equal(s.audio.currentTime, 100);
 });
 
+test('mobile clip starts audibly without an initial seek, preserving the recording timeline', async () => {
+  const s = setup({ browser: true });
+  s.audio.src = 'https://example.test/audio/edit.mp3';
+  s.audio.duration = 60;
+  let seeks = 0;
+  let actual = 0;
+  Object.defineProperty(s.audio, 'currentTime', {
+    get: () => actual, set: value => { seeks++; actual = value; if (value < s.audio.duration) s.audio.ended = false; }, configurable: true
+  });
+  await s.ids.playBtn.emit('click');
+  assert.equal(s.audio.muted, false, 'iOS must not require an asynchronous unmute');
+  await s.load();
+  assert.equal(seeks, 0, 'startup must stream from byte zero without seeking');
+  assert.equal(s.run('startup'), null);
+  assert.equal(s.audio.paused, false);
+  assert.equal(s.run('recordingTime()'), 100);
+  actual = 30;
+  s.run('tick()');
+  assert.equal(s.ids.seek.value, 30);
+  assert.equal(s.run('lastCue'), s.run('cueAt(130)'));
+  s.ids.seek.value = '45';
+  await s.ids.seek.emit('input');
+  assert.equal(actual, 45);
+  assert.equal(s.run('recordingTime()'), 145);
+  await s.audio.emit('seeked');
+  actual = 60; s.audio.ended = true;
+  await s.audio.emit('ended');
+  assert.equal(s.ids.seek.value, 60);
+  await s.ids.playBtn.emit('click');
+  assert.equal(actual, 0);
+  assert.equal(s.audio.paused, false);
+  assert.equal(s.run('recordingTime()'), 100);
+});
+
 test('cold playback remains muted until the requested edit position is confirmed', async () => {
   const s = setup({ browser: true });
   let requested = 0;

@@ -8,6 +8,12 @@ const status = document.getElementById('status');
 const intro = document.getElementById('intro');
 const stage = document.getElementById('stage');
 const desktopOverlay = window.overlay?.desktop === true;
+if (desktopOverlay && audio.dataset.fullSrc) audio.src = audio.dataset.fullSrc;
+
+// The browser clip begins at the edit; choreography keeps its original recording clock.
+const recordingOffset = () => audio.src.endsWith('/edit.mp3') ? START_AT : 0;
+const recordingTime = () => audio.currentTime + recordingOffset();
+const seekRecording = time => { audio.currentTime = Math.max(0, time - recordingOffset()); };
 document.documentElement.classList.toggle('browser-mode', !desktopOverlay);
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const photoBanks = photos.map((photo, card) => {
@@ -39,7 +45,7 @@ let resumeAfterScrub = false;
 let previewTime = null;
 
 const formatTime = time => `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
-const segmentEnd = () => Number.isFinite(audio.duration) && audio.duration > START_AT ? Math.min(END_AT, audio.duration) : END_AT;
+const segmentEnd = () => Number.isFinite(audio.duration) && audio.duration + recordingOffset() > START_AT ? Math.min(END_AT, audio.duration + recordingOffset()) : END_AT;
 
 function showCue(index) {
   lyric.replaceChildren();
@@ -134,12 +140,12 @@ function cancelLoop() {
 }
 
 function renderCurrent() {
-  renderAt(previewTime ?? startup?.target ?? (audio.ended ? END_AT : audio.currentTime));
+  renderAt(previewTime ?? startup?.target ?? (audio.ended ? END_AT : recordingTime()));
 }
 
 function finishStartup() {
   if (!startup || audio.readyState < 1 || audio.seeking) return;
-  if (audio.currentTime >= startup.target - 0.05 && audio.currentTime < startup.target + 0.5) {
+  if (recordingTime() >= startup.target - 0.05 && recordingTime() < startup.target + 0.5) {
     const muted = startup.muted;
     startup = null;
     audio.muted = muted;
@@ -153,7 +159,7 @@ function finishStartup() {
     return;
   }
   startup.attempts++;
-  try { audio.currentTime = startup.target; }
+  try { seekRecording(startup.target); }
   catch {
     pause();
     status.textContent = 'Could not load the edit position. Tap Play song to retry.';
@@ -162,14 +168,16 @@ function finishStartup() {
 
 function guardStartup(target) {
   startup = { target, muted: audio.muted, attempts: 0 };
-  audio.muted = true;
+  // A cold browser clip already starts at the correct sound. Keep the user-gesture
+  // play audible: iOS can pause a muted start when it is unmuted asynchronously.
+  if (recordingOffset() === 0 || Math.abs(recordingTime() - target) > 0.05) audio.muted = true;
   finishStartup();
 }
 
 function tick() {
   frame = null;
   renderCurrent();
-  if (audio.currentTime >= END_AT || audio.ended) {
+  if (recordingTime() >= END_AT || audio.ended) {
     audio.pause();
     status.textContent = 'A little hope, until tomorrow. Replay when you’re ready.';
     return;
@@ -203,7 +211,7 @@ function reset() {
   resumeAfterScrub = false;
   previewTime = null;
   pause();
-  if (audio.src && audio.readyState >= 1) audio.currentTime = START_AT;
+  if (audio.src && audio.readyState >= 1 && recordingTime() !== START_AT) seekRecording(START_AT);
   renderAt(audio.src && audio.readyState >= 1 ? START_AT : 0);
   status.textContent = 'Ready when you are.';
 }
@@ -212,8 +220,8 @@ async function play() {
   if (!audio.src || playBtn.disabled) return;
   if (playPending) return;
   const generation = playbackGeneration;
-  const target = previewTime ?? (audio.ended || audio.currentTime < START_AT || audio.currentTime >= segmentEnd() ? START_AT : audio.currentTime);
-  if (audio.readyState < 1 || audio.seeking || Math.abs(audio.currentTime - target) > 0.05) guardStartup(target);
+  const target = previewTime ?? (audio.ended || recordingTime() < START_AT || recordingTime() >= segmentEnd() ? START_AT : recordingTime());
+  if (audio.readyState < 1 || audio.seeking || Math.abs(recordingTime() - target) > 0.05) guardStartup(target);
   if (generation !== playbackGeneration) return;
   playPending = true;
   status.textContent = startup ? 'Loading the edit…' : 'Baka Bukas · Angela Ken';
@@ -240,7 +248,7 @@ playBtn.addEventListener('click', () => {
 document.getElementById('resetBtn').addEventListener('click', reset);
 
 function recordingReady() {
-  const valid = audio.duration > START_AT;
+  const valid = audio.duration + recordingOffset() > START_AT;
   playBtn.disabled = !valid;
   seek.disabled = !valid;
   if (valid && startup) {
@@ -256,7 +264,7 @@ function recordingReady() {
 audio.addEventListener('loadedmetadata', recordingReady);
 audio.addEventListener('play', () => {
   if (audio.paused) return;
-  if (!startup && audio.currentTime < START_AT) guardStartup(START_AT);
+  if (!startup && recordingTime() < START_AT) guardStartup(START_AT);
   if (audio.paused) return;
   playBtn.textContent = 'Pause';
   playBtn.setAttribute('aria-pressed', 'true');
@@ -279,7 +287,7 @@ audio.addEventListener('seeked', () => {
 audio.addEventListener('canplay', finishStartup);
 audio.addEventListener('playing', finishStartup);
 audio.addEventListener('timeupdate', () => {
-  if (audio.currentTime >= END_AT && !audio.paused) startLoop();
+  if (recordingTime() >= END_AT && !audio.paused) startLoop();
   else if (audio.paused) renderCurrent();
 });
 audio.addEventListener('ended', () => {
@@ -305,7 +313,7 @@ seek.addEventListener('input', () => {
   const elapsed = Number(seek.value);
   if (!Number.isFinite(elapsed)) return;
   previewTime = Math.max(START_AT, Math.min(segmentEnd(), START_AT + elapsed));
-  audio.currentTime = previewTime;
+  seekRecording(previewTime);
   renderCurrent();
 });
 function finishScrub(resume = true) {

@@ -23,7 +23,18 @@ const server = http.createServer((req, res) => {
       if (start > end) { res.writeHead(416).end(); return; }
       if (range) res.setHeader('Content-Range', `bytes ${start}-${end}/${data.length}`);
       res.setHeader('Content-Length', end - start + 1);
-      res.writeHead(range ? 206 : 200).end(data.subarray(start, end + 1));
+      res.writeHead(range ? 206 : 200);
+      if (process.env.SLOW_MEDIA && path.extname(target) === '.mp3') {
+        // Stream about 64 KB/s: playback must start before the clip fully downloads.
+        let position = start;
+        const timer = setInterval(() => {
+          const next = Math.min(position + 4096, end + 1);
+          res.write(data.subarray(position, next));
+          position = next;
+          if (position > end) { clearInterval(timer); res.end(); }
+        }, 64);
+        res.on('close', () => clearInterval(timer));
+      } else res.end(data.subarray(start, end + 1));
     };
     // Delay the real HTTP response, rather than intercepting browser media requests.
     if (path.extname(target) === '.mp3') setTimeout(deliver, 350);
@@ -63,8 +74,11 @@ async function checkPlayback(page) {
   try {
     // WebKit may withhold metadata until a real user gesture starts loading.
     await page.evaluate(() => { audio.volume = 0; });
+    const started = Date.now();
     await page.locator('#playBtn').tap();
-    await page.waitForFunction(() => !audio.paused && !startup && audio.currentTime >= 99.95 && audio.currentTime < 102);
+    await page.waitForFunction(() => !audio.paused && !startup && recordingTime() >= 99.95 && recordingTime() < 102);
+    assert.ok(Date.now() - started < 6000, 'cold playback should start without downloading the entire clip');
+    assert.deepEqual(await page.evaluate(() => window.mediaTrace.filter(event => event.type === 'seeking')), [], 'cold clip must not seek before playback');
     await page.locator('#playBtn').tap();
     assert.equal(await page.evaluate(() => audio.paused && frame === null), true);
     assert.deepEqual(await page.evaluate(() => window.mediaTrace?.filter(event => !event.muted && !event.paused && event.time < 99.95) || []), []);
@@ -72,9 +86,9 @@ async function checkPlayback(page) {
     await page.locator('#resetBtn').tap();
     // Windows WebKit can read back 100.01 after an MP3 seek to exactly 100.
     // Allow less than one MP3 frame here; unit tests still verify the request is 100.
-    await page.waitForFunction(() => !audio.seeking && Math.abs(audio.currentTime - 100) < 0.025);
+    await page.waitForFunction(() => !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
   } catch (error) {
-    console.error('Media diagnostics:', await page.evaluate(() => ({ time: audio.currentTime, duration: audio.duration, ready: audio.readyState, disabled: playBtn.disabled, error: audio.error?.message, code: audio.error?.code, status: status.textContent, src: audio.src })));
+    console.error('Media diagnostics:', await page.evaluate(() => ({ time: recordingTime(), duration: audio.duration, ready: audio.readyState, disabled: playBtn.disabled, error: audio.error?.message, code: audio.error?.code, status: status.textContent, src: audio.src })));
     throw error;
   }
 }
@@ -83,16 +97,16 @@ async function checkSlider(page) {
   const slider = page.locator('#seek');
   await slider.focus();
   await page.keyboard.press('Home');
-  await page.waitForFunction(() => !audio.seeking && Math.abs(audio.currentTime - 100) < 0.025);
+  await page.waitForFunction(() => !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
   assert.equal(await slider.inputValue(), '0');
   const box = await slider.boundingBox();
   await slider.tap({ position: { x: box.width / 2, y: box.height / 2 } });
-  await page.waitForFunction(() => !audio.seeking && audio.currentTime > 128 && audio.currentTime < 132);
+  await page.waitForFunction(() => !audio.seeking && recordingTime() > 128 && recordingTime() < 132);
   assert.equal(await page.evaluate(() => audio.paused), true);
   await page.locator('#playBtn').tap();
-  await page.waitForFunction(() => !audio.paused && !startup && audio.currentTime > 128 && audio.currentTime < 134);
+  await page.waitForFunction(() => !audio.paused && !startup && recordingTime() > 128 && recordingTime() < 134);
   await slider.tap({ position: { x: box.width * 0.75, y: box.height / 2 } });
-  await page.waitForFunction(() => !audio.paused && !startup && !audio.seeking && audio.currentTime > 142 && audio.currentTime < 148);
+  await page.waitForFunction(() => !audio.paused && !startup && !audio.seeking && recordingTime() > 142 && recordingTime() < 148);
   await page.locator('#playBtn').tap();
   await page.waitForFunction(() => audio.paused && frame === null);
   const progress = await slider.inputValue();
@@ -100,12 +114,12 @@ async function checkSlider(page) {
   assert.equal(await slider.inputValue(), progress);
   await slider.focus();
   await page.keyboard.press('End');
-  await page.waitForFunction(() => !audio.seeking && audio.currentTime >= 159.95);
+  await page.waitForFunction(() => !audio.seeking && recordingTime() >= 159.95);
   assert.equal(await page.evaluate(() => Number(seek.value) > 59.9 && lyric.style.opacity === '0'), true);
   await page.locator('#playBtn').tap();
-  await page.waitForFunction(() => !audio.paused && !startup && audio.currentTime >= 99.95 && audio.currentTime < 102);
+  await page.waitForFunction(() => !audio.paused && !startup && recordingTime() >= 99.95 && recordingTime() < 102);
   await page.locator('#resetBtn').tap();
-  await page.waitForFunction(() => audio.paused && !audio.seeking && Math.abs(audio.currentTime - 100) < 0.025);
+  await page.waitForFunction(() => audio.paused && !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
 }
 
 (async () => {
@@ -126,7 +140,7 @@ async function checkSlider(page) {
         console.log('Android Chrome emulator: layout and touch playback passed');
       } finally { await context.close(); await device.close(); }
     } else {
-      for (const [engine, names] of [[chromium, ['Pixel 5', 'Galaxy S9+', 'Pixel 5 landscape']], [webkit, ['iPhone SE', 'iPhone 13', 'iPhone 13 landscape', 'iPad Mini']]]) {
+      for (const [engine, names] of [[chromium, ['Pixel 5', 'Galaxy S9+', 'Pixel 5 landscape']], [webkit, ['iPhone SE', 'iPhone 12', 'iPhone 13', 'iPhone 13 landscape', 'iPad Mini']]]) {
         const browser = await engine.launch({ headless: true });
         try {
           for (const name of names) {
@@ -138,8 +152,8 @@ async function checkSlider(page) {
               page.on('pageerror', error => errors.push(error.message));
               await page.addInitScript(() => {
                 window.mediaTrace = [];
-                for (const type of ['playing', 'timeupdate']) document.addEventListener(type, event => {
-                  if (event.target.id === 'audio') window.mediaTrace.push({ type, time: event.target.currentTime, muted: event.target.muted, paused: event.target.paused });
+                for (const type of ['seeking', 'playing', 'timeupdate']) document.addEventListener(type, event => {
+                  if (event.target.id === 'audio') window.mediaTrace.push({ type, time: event.target.currentTime + (event.target.src.endsWith('/edit.mp3') ? 100 : 0), muted: event.target.muted, paused: event.target.paused });
                 }, true);
               });
               await page.goto(url, { waitUntil: 'domcontentloaded' });

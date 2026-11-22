@@ -78,7 +78,7 @@ app.whenReady().then(async () => {
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       const until = async predicate => { for (let i = 0; i < 400; i++) { if (predicate()) return; await wait(10); } throw new Error('Media timeout'); };
       await until(() => audio.readyState >= 2 && !audio.seeking);
-      check(Math.abs(audio.currentTime - 100) < 0.001 && !playBtn.disabled, 'hosted MP3 did not initialize: ' + JSON.stringify({ time: audio.currentTime, disabled: playBtn.disabled, duration: audio.duration, readyState: audio.readyState, status: status.textContent }));
+      check(audio.currentTime === 0 && recordingTime() === 100 && !playBtn.disabled, 'browser clip did not initialize without seeking: ' + JSON.stringify({ time: audio.currentTime, disabled: playBtn.disabled, duration: audio.duration, readyState: audio.readyState, status: status.textContent }));
       check(!document.getElementById('audioBtn') && !document.getElementById('audioFile'), 'song picker must be removed');
       const bytes = new Uint8Array(44);
       const sourceBytes = new Uint8Array(${JSON.stringify([...fs.readFileSync(path.join(process.env.OVERLAY_TEST_FOLDER, 'silent.wav')).subarray(0, 44)])});
