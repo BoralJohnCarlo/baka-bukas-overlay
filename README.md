@@ -12,7 +12,7 @@ The supplied audio file is read locally and never modified. Keep it in the `audi
 
 ## Mobile and browser use
 
-Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her (original)` folders together on a static web host. Browsers play `audio/edit.mp3`, a 60-second derivative of the original recording from 1:40 to 2:40, without an initial seek. Byte-range support is still recommended for slider seeking. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
+Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, `hearts.js`, and the `audio`, `me`, and `her (original)` folders together on a static web host. Browsers play `audio/edit.mp3`, a 60-second derivative of the original recording from 1:40 to 2:40, without an initial seek. Byte-range support is still recommended for slider seeking. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
 
 In a browser, the page has a dark photographic background with soft focus, a vignette, warm light, and subtle grain. Its two photo layers crossfade from the recording clock, with slow horizontal drift. Tap **Play song** to begin the fixed edit. There is no song picker. The browser clip maps its 0:00–1:00 media clock to the original 1:40–2:40 lyric timeline; the original recording stays unchanged. A cold start neither seeks nor starts muted, avoiding mobile Safari seek waits and asynchronous unmute restrictions. Desktop overlay transparency and global shortcuts are available in Electron only.
 
@@ -28,6 +28,10 @@ Optional cross-engine checks: install test tooling with `npm install --no-save -
 
 The WebKit MP3 reset check allows a 25 ms readback tolerance because this port sometimes reports 100.01 seconds after a seek to 100; the application still requests exactly 100 seconds and the approved timeline is unchanged.
 
+
+## Floating hearts
+
+Tap or click the scene, or use the gold heart button (also available with keyboard focus and Enter/Space), to release a small pair of warm-gold and dusty-pink heart balloons from below. They rise for about five seconds with a gentle sway, behind the lyrics. Bursts have a 700 ms cooldown and a maximum of six hearts on compact stages or eight on wide stages. Playback controls and drags do not create hearts. Reduced motion shows one stationary heart fading near the bottom, with a maximum of two. Finished animations remove their DOM nodes; rotation, page exit, hidden tabs, and reduced-motion changes clear the effect. These decorative interactions use the browser animation clock and can run while the song is paused; lyric choreography remains tied to audio time.
 
 ## Controls
 

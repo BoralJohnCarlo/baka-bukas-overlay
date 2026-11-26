@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const checkHearts = require('./hearts-check.cjs');
 const root = path.resolve(__dirname, '..');
 const server = http.createServer((req, res) => {
   const name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -70,20 +71,25 @@ async function checkLayout(page, padding = '') {
   assert.deepEqual(issues, []);
 }
 
+async function activate(page, locator, options) {
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await locator.tap(options);
+  else await locator.click(options);
+}
+
 async function checkPlayback(page) {
   try {
     // WebKit may withhold metadata until a real user gesture starts loading.
     await page.evaluate(() => { audio.volume = 0; });
     const started = Date.now();
-    await page.locator('#playBtn').tap();
+    await activate(page, page.locator('#playBtn'));
     await page.waitForFunction(() => !audio.paused && !startup && recordingTime() >= 99.95 && recordingTime() < 102);
     assert.ok(Date.now() - started < 6000, 'cold playback should start without downloading the entire clip');
     assert.deepEqual(await page.evaluate(() => window.mediaTrace.filter(event => event.type === 'seeking')), [], 'cold clip must not seek before playback');
-    await page.locator('#playBtn').tap();
+    await activate(page, page.locator('#playBtn'));
     assert.equal(await page.evaluate(() => audio.paused && frame === null), true);
     assert.deepEqual(await page.evaluate(() => window.mediaTrace?.filter(event => !event.muted && !event.paused && event.time < 99.95) || []), []);
     assert.equal(await page.locator('#audioBtn').count(), 0);
-    await page.locator('#resetBtn').tap();
+    await activate(page, page.locator('#resetBtn'));
     // Windows WebKit can read back 100.01 after an MP3 seek to exactly 100.
     // Allow less than one MP3 frame here; unit tests still verify the request is 100.
     await page.waitForFunction(() => !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
@@ -101,16 +107,16 @@ async function checkSlider(page) {
   // WebKit MP3 readback can land within one audio frame of the requested zero.
   assert.ok(Math.abs(Number(await slider.inputValue())) < 0.025);
   const box = await slider.boundingBox();
-  await slider.tap({ position: { x: box.width / 2, y: box.height / 2 } });
+  await activate(page, slider, { position: { x: box.width / 2, y: box.height / 2 } });
   await page.waitForFunction(() => !audio.seeking && recordingTime() > 128 && recordingTime() < 132);
   assert.equal(await page.evaluate(() => audio.paused), true);
-  await page.locator('#playBtn').tap();
+  await activate(page, page.locator('#playBtn'));
   await page.waitForFunction(() => !audio.paused && !startup && recordingTime() > 128 && recordingTime() < 134);
   // Native ranges reserve half the 22px thumb at both ends of the track.
   const activeBox = await slider.boundingBox();
-  await slider.tap({ position: { x: 11 + (activeBox.width - 22) * 0.75, y: activeBox.height / 2 } });
+  await activate(page, slider, { position: { x: 11 + (activeBox.width - 22) * 0.75, y: activeBox.height / 2 } });
   await page.waitForFunction(() => !audio.paused && !startup && !audio.seeking && recordingTime() > 142 && recordingTime() < 148);
-  await page.locator('#playBtn').tap();
+  await activate(page, page.locator('#playBtn'));
   await page.waitForFunction(() => audio.paused && frame === null);
   const progress = await slider.inputValue();
   await page.waitForTimeout(120);
@@ -119,9 +125,9 @@ async function checkSlider(page) {
   await page.keyboard.press('End');
   await page.waitForFunction(() => !audio.seeking && recordingTime() >= 159.95);
   assert.equal(await page.evaluate(() => Number(seek.value) > 59.9 && lyric.style.opacity === '0'), true);
-  await page.locator('#playBtn').tap();
+  await activate(page, page.locator('#playBtn'));
   await page.waitForFunction(() => !audio.paused && !startup && recordingTime() >= 99.95 && recordingTime() < 102);
-  await page.locator('#resetBtn').tap();
+  await activate(page, page.locator('#resetBtn'));
   await page.waitForFunction(() => audio.paused && !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
 }
 
@@ -143,7 +149,7 @@ async function checkSlider(page) {
         console.log('Android Chrome emulator: layout and touch playback passed');
       } finally { await context.close(); await device.close(); }
     } else {
-      for (const [engine, names] of [[chromium, ['Pixel 5', 'Galaxy S9+', 'Pixel 5 landscape']], [webkit, ['iPhone SE', 'iPhone 12', 'iPhone 13', 'iPhone 13 landscape', 'iPad Mini']]]) {
+      for (const [engine, names] of [[chromium, ['Desktop Chrome', 'Pixel 5', 'Galaxy S9+', 'Pixel 5 landscape']], [webkit, ['iPhone SE', 'iPhone 12', 'iPhone 13', 'iPhone 13 landscape', 'iPad Mini']]]) {
         const browser = await engine.launch({ headless: true });
         try {
           for (const name of names) {
@@ -160,6 +166,7 @@ async function checkSlider(page) {
                 }, true);
               });
               await page.goto(url, { waitUntil: 'domcontentloaded' });
+              await checkHearts(page);
               await checkPlayback(page);
               await page.waitForFunction(() => photoBanks.every(bank => bank.images.every(image => image.complete && image.naturalWidth > 0)));
               await checkLayout(page);
@@ -174,8 +181,9 @@ async function checkSlider(page) {
               }
               await page.emulateMedia({ reducedMotion: 'reduce' });
               await checkLayout(page);
+              await checkHearts(page, true);
               assert.deepEqual(errors, []);
-              console.log(`${engine.name()} / ${name}: cold startup, elapsed slider, pause/resume, layout, intro separation, rotation, simulated safe areas and reduced motion passed`);
+              console.log(`${engine.name()} / ${name}: cold startup, elapsed slider, pause/resume, layout, intro separation, rotation, simulated safe areas, reduced motion and heart balloon interactions passed`);
             } finally { await context.close(); }
           }
         } finally { await browser.close(); }

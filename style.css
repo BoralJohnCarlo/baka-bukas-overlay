@@ -197,3 +197,18 @@ output, .status { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .memory > div { transform: none; }
 }
+
+/* Sparse, user-triggered balloons stay behind the lyrics and never catch taps. */
+.browser-mode #stage { pointer-events: auto; touch-action: manipulation; }
+.heart-sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.polaroid { z-index: 1; }
+.intro { z-index: 2; }
+.heart-balloon { position: absolute; bottom: -32px; display: block; opacity: 0; pointer-events: none; color: #d9b88a; }
+.heart-balloon.rose { color: #b98494; }
+.heart-balloon svg { display: block; width: 100%; height: auto; fill: currentColor; }
+.heart-thread { fill: none; stroke: currentColor; stroke-width: .55; opacity: .55; }
+.buttons .love-button { flex: 0 0 44px; min-width: 44px; min-height: 44px; padding: 10px; color: #d9b88a; }
+.love-button svg { display: block; width: 20px; height: 20px; margin: auto; fill: currentColor; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .buttons { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; }
+}

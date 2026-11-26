@@ -12,6 +12,7 @@
   <main id="stage" aria-label="Baka Bukas lyric animation">
     <div class="memory" aria-hidden="true"><div id="memoryPrevious"></div><div id="memoryCurrent"></div></div>
     <div class="atmosphere" aria-hidden="true"></div>
+    <div class="heart-sky" id="heartSky" aria-hidden="true"></div>
     <div class="intro" id="intro" aria-hidden="true">
       <span>A moment, kept</span>
       <em>baka bukas…</em>
@@ -36,6 +37,9 @@
     <div class="buttons">
       <button id="playBtn" class="primary" aria-pressed="false" disabled>Play song</button>
       <button id="resetBtn">Reset</button>
+      <button id="loveBtn" class="love-button" type="button" aria-label="Send floating hearts" title="Send a little love">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21S2 15 2 8.5C2 3 9 1 12 6c3-5 10-3 10 2.5C22 15 12 21 12 21Z"/></svg>
+      </button>
     </div>
     <div class="transport">
       <input id="seek" type="range" min="0" max="60" step="0.01" value="0" aria-label="Position in edit, seconds" disabled>
@@ -49,5 +53,6 @@
   <script src="motion.js"></script>
   <script src="photo-sequence.js"></script>
   <script src="renderer.js"></script>
+  <script src="hearts.js"></script>
 </body>
 </html>
