@@ -209,6 +209,7 @@ output, .status { font-size: 14px; }
 .heart-thread { fill: none; stroke: currentColor; stroke-width: .55; opacity: .55; }
 .buttons .love-button { flex: 0 0 44px; min-width: 44px; min-height: 44px; padding: 10px; color: #d9b88a; }
 .love-button svg { display: block; width: 20px; height: 20px; margin: auto; fill: currentColor; }
+.love-button[aria-pressed='false'] svg { fill: none; stroke: currentColor; stroke-width: 1.5; opacity: .6; }
 @media (orientation: landscape) and (max-height: 500px) {
   .buttons { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; }
 }

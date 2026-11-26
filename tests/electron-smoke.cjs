@@ -94,7 +94,7 @@ app.on('browser-window-created', (_, win) => {
         audio.currentTime = 159.85;
         await until(() => audio.paused && frame === null);
         check(lyric.style.opacity === '0' && photos.every(p => p.style.opacity === '0'), 'outro must clear the stage');
-        check(document.getAnimations().length === 0, 'independent browser animations found');
+        check(document.getAnimations().every(animation => animation.effect.target.closest('.heart-sky')), 'independent lyric animations found');
         playBtn.click(); await until(() => !audio.paused);
         check(audio.currentTime >= 100 && audio.currentTime < 100.2, 'segment replay must restart at 100');
         document.getElementById('resetBtn').click();

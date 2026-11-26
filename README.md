@@ -31,7 +31,7 @@ The WebKit MP3 reset check allows a 25 ms readback tolerance because this port s
 
 ## Floating hearts
 
-Tap or click the scene, or use the gold heart button (also available with keyboard focus and Enter/Space), to release a small pair of warm-gold and dusty-pink heart balloons from below. They rise for about five seconds with a gentle sway, behind the lyrics. Bursts have a 700 ms cooldown and a maximum of six hearts on compact stages or eight on wide stages. Playback controls and drags do not create hearts. Reduced motion shows one stationary heart fading near the bottom, with a maximum of two. Finished animations remove their DOM nodes; rotation, page exit, hidden tabs, and reduced-motion changes clear the effect. These decorative interactions use the browser animation clock and can run while the song is paused; lyric choreography remains tied to audio time.
+Warm-gold and dusty-pink heart balloons float automatically by default, with a small pair released every 2.4 seconds at alternating positions. The heart button toggles the effect on/off using mouse, touch, Enter, or Space; its filled/outlined icon and pressed state show whether hearts are enabled. Turning it off clears existing hearts and stops new releases. Turning it back on restarts the gentle flow. The original colors, five-second rise, population limits (six on compact stages, eight on wide stages), and optional scene taps stay intact. Reduced motion uses stationary fades. Hidden tabs and page exits stop the effect; returning resumes it only if enabled. These decorative effects can run while the song is paused, independently of lyric choreography.
 
 ## Controls
 

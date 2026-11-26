@@ -7,6 +7,10 @@
   const active = new Map();
   let lastRelease = -Infinity;
   let press = null;
+  let enabled = true;
+  let pageActive = true;
+  let timer = null;
+  let releaseIndex = 0;
 
   function clear() {
     for (const [heart, animation] of active) {
@@ -23,7 +27,7 @@
     const bounds = scene.getBoundingClientRect();
     const compact = bounds.width < 760;
     const limit = motion.matches ? 2 : compact ? 6 : 8;
-    if (document.hidden || now - lastRelease < 700 || active.size >= limit || bounds.width < 60) return;
+    if (!enabled || !pageActive || document.hidden || now - lastRelease < 700 || active.size >= limit || bounds.width < 60) return;
     lastRelease = now;
     const count = Math.min(motion.matches ? 1 : 2, limit - active.size);
     for (let i = 0; i < count; i++) {
@@ -57,6 +61,26 @@
     }
   }
 
+  function stop() {
+    if (timer !== null) window.clearTimeout(timer);
+    timer = null;
+    clear();
+  }
+
+  function automaticRelease() {
+    timer = null;
+    if (!enabled || !pageActive || document.hidden) return;
+    const bounds = scene.getBoundingClientRect();
+    const positions = [0.22, 0.76, 0.42, 0.62];
+    release(bounds.left + bounds.width * positions[releaseIndex++ % positions.length]);
+    timer = window.setTimeout(automaticRelease, 2400);
+  }
+
+  function restart() {
+    stop();
+    automaticRelease();
+  }
+
   // Pointer events cover touch, pen, and mouse; drags and controls never release hearts.
   document.addEventListener('pointerdown', event => {
     press = event.isPrimary !== false && event.button === 0 && !event.target.closest('.controls')
@@ -72,11 +96,15 @@
   });
   document.addEventListener('pointercancel', () => { press = null; });
   button.addEventListener('click', () => {
-    const bounds = scene.getBoundingClientRect();
-    release(bounds.left + bounds.width * 0.5);
+    enabled = !enabled;
+    button.setAttribute('aria-pressed', String(enabled));
+    button.title = enabled ? 'Turn floating hearts off' : 'Turn floating hearts on';
+    restart();
   });
-  motion.addEventListener('change', clear);
-  window.addEventListener('resize', clear);
-  window.addEventListener('pagehide', clear);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
+  motion.addEventListener('change', restart);
+  window.addEventListener('resize', restart);
+  window.addEventListener('pagehide', () => { pageActive = false; stop(); });
+  window.addEventListener('pageshow', () => { pageActive = true; restart(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else restart(); });
+  restart();
 })();
