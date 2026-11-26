@@ -170,7 +170,7 @@ function renderAt(seconds) {
     const depth = Math.abs(pose.tilt) > 0.01 ? ` perspective(900px) rotateY(${pose.tilt}deg)` : '';
     const scale = pose.scale === 1 ? '' : ` scale(${pose.scale})`;
     const travel = compact ? Math.min(0.35, stageWidth / 1600) : 1;
-    photo.style.transform = `translate(-50%, -50%) translate(${pose.dx * travel}px, ${pose.dy * travel}px)${depth} rotate(${pose.rotation * 0.6}deg)${scale}`;
+    photo.style.transform = `translate(-50%, -50%) translate(${pose.dx * travel}px, ${pose.dy * travel + (pose.floatY ?? 0)}px)${depth} rotate(${pose.rotation * 0.6}deg)${scale}`;
   });
 }
 

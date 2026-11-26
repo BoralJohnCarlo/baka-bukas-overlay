@@ -407,16 +407,16 @@ test('white words rise and stagger; gold enters and exits later, with all words 
   const pose = (time, gold, order = 0, reduced = false) => run(`sampleText(${time}, 4, ${order}, 8, ${reduced}, ${gold})`);
   const start = run('cues[4].time');
   const end = run('cues[5].time');
-  assert.equal(pose(start + 0.1, true).opacity, 0);
+  assert.equal(pose(start + 0.2, true).opacity, 0);
   assert.ok(pose(start + 0.1, false).opacity > 0);
   assert.ok(pose(start + 0.2, false).opacity > pose(start + 0.2, false, 1).opacity);
-  assert.ok(pose(start + 0.3, true).scale > pose(start + 0.15, true).scale);
-  assert.ok(pose(start + 0.3, true).scale > pose(start + 0.3, true, 1).scale);
+  assert.ok(pose(start + 0.4, true).scale > pose(start + 0.15, true).scale);
+  assert.ok(pose(start + 0.4, true).scale > pose(start + 0.4, true, 1).scale);
   const white = pose(start + 0.2, false);
   assert.equal(white.scale, 1);
-  assert.ok(white.y > 0 && white.y < 8);
+  assert.ok(Math.abs(white.y) <= 11);
   assert.ok(pose(end - 0.5, false).opacity < 1);
-  assert.equal(pose(end - 0.5, true).opacity, 1);
+  assert.equal(pose(end - 0.4, true).opacity, 1);
   const goldExit = pose(end - 0.2, true);
   assert.ok(goldExit.scale < 1 && goldExit.scale > 0.82);
   assert.ok(goldExit.opacity < 1 && goldExit.opacity > 0);
@@ -429,7 +429,7 @@ test('white words rise and stagger; gold enters and exits later, with all words 
         const held = run(`sampleText(cues[${index}].time + 1, ${index}, ${order}, 10, false, ${gold})`);
         assert.equal(held.opacity, 1);
         assert.equal(held.scale, 1);
-        assert.equal(held.y, 0);
+        assert.ok(Math.abs(held.y) <= 3);
       }
     }
   }
@@ -440,6 +440,21 @@ test('white words rise and stagger; gold enters and exits later, with all words 
   assert.equal(run("units[0].dataset.motionOrder"), '0');
   assert.equal(run("units[2].dataset.motionOrder"), '0');
   assert.ok(run('Number(units[2].style.opacity) > Number(units[0].style.opacity)'));
+});
+
+test('slow floating is periodic, continuous across cues, and disabled for reduced motion', () => {
+  const { run } = setup();
+  assert.ok(Math.abs(run('floatOffset(START_AT)')) < 1e-10);
+  assert.equal(run('floatOffset(START_AT + 2)'), 3);
+  assert.equal(run('floatOffset(START_AT + 6)'), -3);
+  assert.ok(Math.abs(run('floatOffset(START_AT + 8)')) < 1e-10);
+  const before = run('sampleCard(cues[1].time - 0.00001, 0, 0, false)');
+  const after = run('sampleCard(cues[1].time, 1, 0, false)');
+  assert.ok(Math.abs(before.floatY - after.floatY) < 0.001);
+  assert.ok(Math.abs(before.rotation - after.rotation) < 0.001);
+  assert.equal(run('sampleCard(START_AT + 2, 0, 0, true).floatY'), 0);
+  assert.equal(run('sampleText(cues[4].time + 2, 4, 0, 8, true, true).y'), 0);
+  assert.notEqual(run('sampleText(cues[4].time + 1, 4, 0, 8, false).y'), run('sampleText(cues[4].time + 2, 4, 0, 8, false).y'));
 });
 
 test('decimal MP3 seeks tolerate microsecond truncation without advancing millisecond-early cues', () => {

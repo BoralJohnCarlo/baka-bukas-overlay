@@ -49,6 +49,8 @@ const clamp = value => Math.max(0, Math.min(1, value));
 const mix = (a, b, t) => a + (b - a) * t;
 const easeOut = t => 1 - Math.pow(1 - clamp(t), 4);
 const smooth = t => { t = clamp(t); return t * t * (3 - 2 * t); };
+// One slow eight-second cycle, shared across cues and sampled from the audio clock.
+const floatOffset = (seconds, phase = 0, amplitude = 3) => Math.sin((seconds - START_AT) * Math.PI / 4 + phase) * amplitude;
 
 function cardPose(index, card) {
   const [x, y, rotation] = arrangements[index].cards[card];
@@ -80,16 +82,10 @@ function sampleCard(seconds, index, card, reducedMotion) {
     from = cardPose(index - 1, card);
     to = displaced(from, arrangements[index - 1].exit, card, true);
   } else return { ...target, opacity: 0 };
-  if (previous && !reducedMotion) {
-    const previousAge = cues[index].time - cues[index - 1].time;
-    from.dy += Math.sin(previousAge * 0.85 + card * 2) * 5;
-    from.rotation += Math.sin(previousAge * 0.55 + card) * 0.65;
-  }
   const result = {};
   for (const key of Object.keys(target)) result[key] = mix(from[key], to[key], progress);
   if (!reducedMotion) {
-    result.dy += Math.sin(age * 0.85 + card * 2) * 5 * progress;
-    result.rotation += Math.sin(age * 0.55 + card) * 0.65 * progress;
+    result.rotation += floatOffset(seconds, card * 0.8, 0.4) * result.opacity;
   }
   const farewell = smooth((seconds - (END_AT - 2)) / 2);
   if (!reducedMotion && farewell > 0) {
@@ -99,6 +95,7 @@ function sampleCard(seconds, index, card, reducedMotion) {
     }
   }
   result.opacity *= 1 - farewell;
+  result.floatY = reducedMotion ? 0 : floatOffset(seconds, card * 0.8, 6) * result.opacity;
   return result;
 }
 
@@ -109,18 +106,18 @@ function sampleText(seconds, index, unit, count, reducedMotion, highlighted = fa
   const duration = (cues[index + 1]?.time ?? END_AT) - cues[index].time;
   // Each color has its own word order, so a late gold word still leads its group.
   const stagger = reducedMotion ? 0 : Math.min(unit * (highlighted ? 0.05 : 0.03), 0.15);
-  const entranceDelay = (highlighted ? 0.12 : 0) + stagger;
+  const entranceDelay = (highlighted ? 0.25 : 0) + stagger;
   const entrance = smooth((age - entranceDelay) / 0.45);
   const settle = easeOut((age - entranceDelay) / 0.45);
   const outroWindow = index === cues.length - 1 ? 2 : 0.55;
-  const exitStart = duration - outroWindow + (highlighted ? 0.1 : 0) + stagger;
+  const exitStart = duration - outroWindow + (highlighted ? 0.2 : 0) + stagger;
   // Shorten delayed exits so every word is gone at the next lyric boundary.
   const exit = smooth((age - exitStart) / (duration - exitStart));
   return {
     opacity: entrance * (1 - exit),
     scale: highlighted && !reducedMotion ? 0.82 + 0.18 * settle * (1 - exit) : 1,
     x: 0,
-    y: reducedMotion ? 0 : (highlighted ? 10 : 8) * (1 - settle) - (highlighted ? 4 : 5) * exit,
+    y: reducedMotion ? 0 : (highlighted ? 10 : 8) * (1 - settle) - (highlighted ? 4 : 5) * exit + floatOffset(seconds) * entrance * (1 - exit),
     rotation: 0, mask: 0
   };
 }
