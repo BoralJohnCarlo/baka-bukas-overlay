@@ -102,17 +102,25 @@ function sampleCard(seconds, index, card, reducedMotion) {
   return result;
 }
 
-// White lyrics fade; highlighted words grow in and shrink out with the same fade.
+// White words rise softly; gold words follow with delayed scale and fade.
 // Sampling the recording clock keeps pause, replay, and seeking deterministic.
 function sampleText(seconds, index, unit, count, reducedMotion, highlighted = false) {
   const age = seconds - cues[index].time;
   const duration = (cues[index + 1]?.time ?? END_AT) - cues[index].time;
-  const outroDuration = index === cues.length - 1 ? 2 : 0.45;
-  const entrance = smooth(age / 0.45);
-  const exit = smooth((age - duration + outroDuration) / outroDuration);
+  // Each color has its own word order, so a late gold word still leads its group.
+  const stagger = reducedMotion ? 0 : Math.min(unit * (highlighted ? 0.05 : 0.03), 0.15);
+  const entranceDelay = (highlighted ? 0.12 : 0) + stagger;
+  const entrance = smooth((age - entranceDelay) / 0.45);
+  const settle = easeOut((age - entranceDelay) / 0.45);
+  const outroWindow = index === cues.length - 1 ? 2 : 0.55;
+  const exitStart = duration - outroWindow + (highlighted ? 0.1 : 0) + stagger;
+  // Shorten delayed exits so every word is gone at the next lyric boundary.
+  const exit = smooth((age - exitStart) / (duration - exitStart));
   return {
     opacity: entrance * (1 - exit),
-    scale: highlighted && !reducedMotion ? 0.82 + 0.18 * entrance * (1 - exit) : 1,
-    x: 0, y: 0, rotation: 0, mask: 0
+    scale: highlighted && !reducedMotion ? 0.82 + 0.18 * settle * (1 - exit) : 1,
+    x: 0,
+    y: reducedMotion ? 0 : (highlighted ? 10 : 8) * (1 - settle) - (highlighted ? 4 : 5) * exit,
+    rotation: 0, mask: 0
   };
 }

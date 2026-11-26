@@ -396,33 +396,50 @@ test('each cue replaces the lyric at its absolute boundary and fades into view',
     assert.equal(ids.lyric.attributes['aria-label'], run(`cues[${i}].text`));
     assert.equal(run('units.every(u => Number(u.style.opacity) === 0)'), true);
     assert.equal(ids.lyric.style.opacity, '1');
-    run(`renderAt(${time + 0.5})`);
+    run(`renderAt(${time + 0.9})`);
     assert.equal(run('units.every(u => Number(u.style.opacity) === 1)'), true);
   });
   run('renderAt(160)'); assert.equal(ids.lyric.style.opacity, '0');
 });
 
-test('white words only fade; gold words grow in and shrink out while fading', () => {
+test('white words rise and stagger; gold enters and exits later, with all words finishing on time', () => {
   const { run } = setup();
+  const pose = (time, gold, order = 0, reduced = false) => run(`sampleText(${time}, 4, ${order}, 8, ${reduced}, ${gold})`);
+  const start = run('cues[4].time');
+  const end = run('cues[5].time');
+  assert.equal(pose(start + 0.1, true).opacity, 0);
+  assert.ok(pose(start + 0.1, false).opacity > 0);
+  assert.ok(pose(start + 0.2, false).opacity > pose(start + 0.2, false, 1).opacity);
+  assert.ok(pose(start + 0.3, true).scale > pose(start + 0.15, true).scale);
+  assert.ok(pose(start + 0.3, true).scale > pose(start + 0.3, true, 1).scale);
+  const white = pose(start + 0.2, false);
+  assert.equal(white.scale, 1);
+  assert.ok(white.y > 0 && white.y < 8);
+  assert.ok(pose(end - 0.5, false).opacity < 1);
+  assert.equal(pose(end - 0.5, true).opacity, 1);
+  const goldExit = pose(end - 0.2, true);
+  assert.ok(goldExit.scale < 1 && goldExit.scale > 0.82);
+  assert.ok(goldExit.opacity < 1 && goldExit.opacity > 0);
+  assert.ok(goldExit.y < 0);
   for (let index = 0; index < 11; index++) {
-    const start = run(`cues[${index}].time`);
-    const end = run(`cues[${index + 1}]?.time ?? END_AT`);
-    const outro = index === 10 ? 2 : 0.45;
-    for (const [time, expectedOpacity] of [[start, 0], [start + 0.225, 0.5], [start + 0.5, 1], [end - outro / 2, 0.5], [end, 0]]) {
-      for (const gold of [false, true]) {
-        const pose = run(`sampleText(${time}, ${index}, 0, 1, false, ${gold})`);
-        assert.ok(Math.abs(pose.opacity - expectedOpacity) < 1e-10);
-        assert.ok(Math.abs(pose.scale - (gold ? 0.82 + 0.18 * expectedOpacity : 1)) < 1e-10);
-        assert.equal(pose.x, 0);
-        assert.equal(pose.y, 0);
-        assert.equal(pose.rotation, 0);
+    for (const gold of [false, true]) {
+      for (const order of [0, 1, 9]) {
+        const atEnd = run(`sampleText(cues[${index + 1}]?.time ?? END_AT, ${index}, ${order}, 10, false, ${gold})`);
+        assert.ok(atEnd.opacity < 1e-10);
+        const held = run(`sampleText(cues[${index}].time + 1, ${index}, ${order}, 10, false, ${gold})`);
+        assert.equal(held.opacity, 1);
+        assert.equal(held.scale, 1);
+        assert.equal(held.y, 0);
       }
     }
   }
-  run('renderAt(cues[4].time + 0.225)');
-  assert.equal(run("units.slice(0, 2).every(u => u.dataset.highlighted === 'true' && u.style.transform.includes('scale(0.9'))"), true);
-  assert.equal(run("units.slice(2).every(u => u.dataset.highlighted === 'false' && u.style.transform.includes('scale(1)'))"), true);
-  assert.equal(run('sampleText(cues[4].time, 4, 0, 1, true, true).scale'), 1);
+  const reduced = pose(start + 0.3, true, 1, true);
+  assert.equal(reduced.scale, 1);
+  assert.equal(reduced.y, 0);
+  run('renderAt(cues[4].time + 0.2)');
+  assert.equal(run("units[0].dataset.motionOrder"), '0');
+  assert.equal(run("units[2].dataset.motionOrder"), '0');
+  assert.ok(run('Number(units[2].style.opacity) > Number(units[0].style.opacity)'));
 });
 
 test('decimal MP3 seeks tolerate microsecond truncation without advancing millisecond-early cues', () => {

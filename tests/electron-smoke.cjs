@@ -65,7 +65,7 @@ app.on('browser-window-created', (_, win) => {
           await until(() => !audio.seeking);
           check(lyric.getAttribute('aria-label') === cue.text, 'wrong lyric at ' + cue.time + ', media clock ' + audio.currentTime + ', cue index ' + lastCue);
           check(units.every(u => Number(u.style.opacity) < 0.01), 'fade did not start transparent at ' + cue.time);
-          audio.currentTime = cue.time + 0.5;
+          audio.currentTime = cue.time + 0.9;
           await until(() => !audio.seeking);
           check(units.every(u => Number(u.style.opacity) === 1), 'fade did not finish at ' + cue.time);
         }

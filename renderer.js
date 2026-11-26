@@ -70,6 +70,9 @@ function showCue(index) {
       const span = document.createElement('span');
       span.className = 'unit';
       span.dataset.highlighted = String(direction.accent.includes(wordIndex));
+      span.dataset.motionOrder = String(direction.accent.includes(wordIndex)
+        ? direction.accent.indexOf(wordIndex)
+        : wordIndex - direction.accent.filter(index => index < wordIndex).length);
       span.textContent = part;
       wrapper.append(span);
       units.push(span);
@@ -128,9 +131,10 @@ function renderAt(seconds) {
   lyric.style.width = `${width}%`;
   lyric.style.textAlign = compact ? 'center' : direction.align;
   lyric.style.setProperty('--lyric-size', `${Math.max(18, Math.min(direction.strong ? 66 : 52, stageWidth * (compact ? 0.068 : 0.047), stageHeight * (compact ? 0.105 : 0.12)))}px`);
-  lyric.style.opacity = String(1 - smooth((seconds - (END_AT - 2)) / 2));
+  // Word envelopes own the fade, including the delayed gold exit in the finale.
+  lyric.style.opacity = '1';
   units.forEach((unit, i) => {
-    const pose = sampleText(seconds, index, i, units.length, reducedMotion.matches, unit.dataset.highlighted === 'true');
+    const pose = sampleText(seconds, index, Number(unit.dataset.motionOrder), units.length, reducedMotion.matches, unit.dataset.highlighted === 'true');
     unit.style.opacity = String(pose.opacity);
     unit.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rotation}deg) scale(${pose.scale})`;
     unit.style.clipPath = `inset(0 0 ${pose.mask}% 0)`;
