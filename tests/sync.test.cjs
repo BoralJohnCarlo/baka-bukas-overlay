@@ -170,8 +170,7 @@ test('mobile placement follows available stage space without changing audio timi
 
 test('scene treatments vary, reduced motion settles, and the ending retains its backdrop', () => {
   const s = setup({ browser: true });
-  assert.ok(s.run('new Set(arrangements.map(scene => scene.textEnter)).size') >= 6);
-  assert.ok(s.run('new Set(arrangements.map(scene => scene.textExit)).size') >= 5);
+  assert.ok(s.run('new Set(arrangements.map(scene => scene.treatment)).size') >= 3);
   assert.equal(s.run('sampleText(119.1, 4, 0, 8, true).scale'), 1);
   assert.equal(Math.abs(s.run('sampleText(119.1, 4, 0, 8, true).y')), 0);
   s.run('renderAt(159.5)');
@@ -386,7 +385,7 @@ test('intro starts at 100 independently of the measured first lyric', () => {
   assert.equal(ids.intro.style.opacity, '0.85');
 });
 
-test('each cue replaces the lyric at its absolute boundary, with every unit visible', () => {
+test('each cue replaces the lyric at its absolute boundary and fades into view', () => {
   const { run, ids } = setup();
   const times = run('cues.map(c => c.time)');
   times.forEach((time, i) => {
@@ -395,10 +394,35 @@ test('each cue replaces the lyric at its absolute boundary, with every unit visi
     run(`renderAt(${time})`);
     assert.equal(run('lastCue'), i);
     assert.equal(ids.lyric.attributes['aria-label'], run(`cues[${i}].text`));
-    assert.equal(run('units.every(u => Number(u.style.opacity) >= 0.78)'), true);
+    assert.equal(run('units.every(u => Number(u.style.opacity) === 0)'), true);
     assert.equal(ids.lyric.style.opacity, '1');
+    run(`renderAt(${time + 0.5})`);
+    assert.equal(run('units.every(u => Number(u.style.opacity) === 1)'), true);
   });
   run('renderAt(160)'); assert.equal(ids.lyric.style.opacity, '0');
+});
+
+test('white words only fade; gold words grow in and shrink out while fading', () => {
+  const { run } = setup();
+  for (let index = 0; index < 11; index++) {
+    const start = run(`cues[${index}].time`);
+    const end = run(`cues[${index + 1}]?.time ?? END_AT`);
+    const outro = index === 10 ? 2 : 0.45;
+    for (const [time, expectedOpacity] of [[start, 0], [start + 0.225, 0.5], [start + 0.5, 1], [end - outro / 2, 0.5], [end, 0]]) {
+      for (const gold of [false, true]) {
+        const pose = run(`sampleText(${time}, ${index}, 0, 1, false, ${gold})`);
+        assert.ok(Math.abs(pose.opacity - expectedOpacity) < 1e-10);
+        assert.ok(Math.abs(pose.scale - (gold ? 0.82 + 0.18 * expectedOpacity : 1)) < 1e-10);
+        assert.equal(pose.x, 0);
+        assert.equal(pose.y, 0);
+        assert.equal(pose.rotation, 0);
+      }
+    }
+  }
+  run('renderAt(cues[4].time + 0.225)');
+  assert.equal(run("units.slice(0, 2).every(u => u.dataset.highlighted === 'true' && u.style.transform.includes('scale(0.9'))"), true);
+  assert.equal(run("units.slice(2).every(u => u.dataset.highlighted === 'false' && u.style.transform.includes('scale(1)'))"), true);
+  assert.equal(run('sampleText(cues[4].time, 4, 0, 1, true, true).scale'), 1);
 });
 
 test('decimal MP3 seeks tolerate microsecond truncation without advancing millisecond-early cues', () => {

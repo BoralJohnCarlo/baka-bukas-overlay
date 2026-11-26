@@ -161,6 +161,7 @@ input[hidden] { display: none; }
 .lyric { font-size: var(--lyric-size, 36px) !important; line-height: 1.14; letter-spacing: -.035em; }
 .lyric .word { position: relative; }
 .lyric .accent-word { color: #efd0a0; }
+.lyric.emphasis { color: #fff8ed; }
 .lyric[data-treatment='statement'] { font-family: 'Arial Narrow', 'Aptos Display', 'Segoe UI', sans-serif; font-style: normal; font-weight: 800; letter-spacing: -.055em; line-height: 1.08; }
 .lyric[data-treatment='statement'] .accent-word { text-transform: uppercase; }
 .lyric[data-treatment='statement'] .word:not(.accent-word) { font: italic 400 .8em/1.25 'Palatino Linotype', 'Book Antiqua', Georgia, serif; letter-spacing: -.025em; color: #fff8ed; }

@@ -46,14 +46,14 @@ Phrase starts were estimated locally from the actual recording using multilingua
 
 `motion.js` defines photo arrangements and samples choreography from absolute recording time. `renderer.js` uses one cancellable `requestAnimationFrame` loop and `audio.currentTime`. There are no animation timers, CSS stage transitions, or independent animation clocks. Pausing freezes poses, and seeking reconstructs the state directly without replaying earlier animations.
 
-All lyric words are present and legible at their scheduled cue boundary. Staggering affects visual emphasis and transforms only. The last two seconds of the existing segment fade the stage out; the segment boundaries stay unchanged. Playback stops on the first frame or media update that observes the end boundary, without seeking or changing playback speed.
+Lyric content switches at its scheduled cue boundary and fades into view over 450 ms. White words fade without moving; gold words grow from 82% to their full size during the entrance, then shrink while fading out. Each line exits over its final 450 ms; the final line exits with the stage over the last two seconds. Cue timestamps and segment boundaries stay unchanged. Playback stops on the first frame or media update that observes the end boundary, without seeking or changing playback speed. Reduced motion keeps the fades and removes scaling.
 
 ## Customize visuals
 
 - `me/1.jpg` through `me/5.jpg` contain the narrator's photos. `her (original)/1.jpg` through `her (original)/3.jpg` contain the person addressed in the lyrics and repeat in order across her five slots: 1, 2, 3, 1, 2. The older `her/` folder is unused.
 - `photo-sequence.js` assigns the images to the existing lyric cues in numbered slots. Photos hold across connected lines. Each card has five preloaded slots; image changes crossfade from audio time and never delay lyrics. Her original portraits use centered framing.
 - Edit arrangements and motion in `motion.js`, and typography, paper styling, and controls in `style.css`.
-- Each lyric has its own serif or bold treatment, emphasized words, entrance, and exit. Motion includes masked rises, scale settles, lateral slides, ripples, and split exits. The repeated “Piliin ako” phrases have a dedicated headline and supporting line. Wide browser stages use the full scene compositions; compact stages use centered solo portraits or staggered pairs with varied lyric heights. Very short stages condense the intro to keep it separate from the lyrics.
+- Each lyric has its own serif or bold treatment and emphasized gold words. White text fades in and out; gold words grow in and shrink out with the fades. The repeated “Piliin ako” phrases have a dedicated headline and supporting line. Wide browser stages use the full scene compositions; compact stages use centered solo portraits or staggered pairs with varied lyric heights. Very short stages condense the intro to keep it separate from the lyrics.
 - `grain.svg` supplies the lightweight backdrop texture and must be included when hosting. All backdrop and foreground movement pauses and seeks with the audio. Reduced motion removes movement and settles the photo layers immediately.
 - The stage respects the system's reduced-motion preference.
 
@@ -75,7 +75,7 @@ An absent card keeps its previous image while it exits. Seeking reconstructs the
 
 ## Verify
 
-- `npm test` checks the approved cue times, original cue text/order/photos, unchanged segment and recording hash, every cue boundary, immediate text visibility, repeated pause/resume, deterministic seeking, reset/replay, end cleanup, single-loop ownership, and listener stability.
+- `npm test` checks the approved cue times, original cue text/order/photos, unchanged segment and recording hash, every cue boundary, white fades and gold scale/fade transitions, repeated pause/resume, deterministic seeking, reset/replay, end cleanup, single-loop ownership, and listener stability.
 - `npm run test:electron` launches the actual Electron entry point, verifies that the local MP3 loads at 100 seconds, and crosses every lyric boundary during real MP3 playback (muted). It also tests the preload bridge, transparency, shortcuts, and media controls with a temporary silent WAV. It saves a preview in the temporary test directory and exits. The test needs the supplied recording and desktop application launch permissions.
 
 Automated tests verify playback behavior and protect the approved alignment from regressions. They cannot independently judge the musical accuracy of model-estimated timestamps; a final listening pass can identify any small vocal-onset adjustments.

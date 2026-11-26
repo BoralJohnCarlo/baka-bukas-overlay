@@ -14,21 +14,21 @@ const arrangements = [
 ];
 // Each phrase has an editorial treatment; repeated lyrics build into a new scene.
 const treatments = [
-  ['whisper', 'left', [3], 'rise', 'scatter'],
-  ['question', 'center', [4], 'mask', 'slide'],
-  ['whisper', 'left', [4, 7], 'drift', 'sink'],
-  ['statement', 'center', [0, 1, 2], 'snap', 'split'],
-  ['statement', 'left', [0, 1], 'punch', 'shrink'],
-  ['whisper', 'right', [4, 5], 'ripple', 'scatter'],
-  ['refrain', 'center', [1, 3], 'spread', 'slide'],
-  ['statement', 'right', [3, 4], 'mask', 'sink'],
-  ['statement', 'center', [0, 1], 'rise', 'split'],
-  ['whisper', 'left', [4, 5], 'ripple', 'shrink'],
-  ['refrain', 'center', [1, 3], 'drift', 'dissolve']
+  ['whisper', 'left', [3]],
+  ['question', 'center', [4]],
+  ['whisper', 'left', [4, 7]],
+  ['statement', 'center', [0, 1, 2]],
+  ['statement', 'left', [0, 1]],
+  ['whisper', 'right', [4, 5]],
+  ['refrain', 'center', [1, 3]],
+  ['statement', 'right', [3, 4]],
+  ['statement', 'center', [0, 1]],
+  ['whisper', 'left', [4, 5]],
+  ['refrain', 'center', [1, 3]]
 ];
 arrangements.forEach((scene, i) => {
-  [scene.treatment, scene.align, scene.accent, scene.textEnter, scene.textExit] = treatments[i];
-  scene.type = i === 5 || i === 9 ? 'letters' : 'words';
+  [scene.treatment, scene.align, scene.accent] = treatments[i];
+  scene.type = 'words';
 });
 
 function sampleLayout(index, compact, introLayout = 0) {
@@ -102,31 +102,17 @@ function sampleCard(seconds, index, card, reducedMotion) {
   return result;
 }
 
-function sampleText(seconds, index, unit, count, reducedMotion) {
+// White lyrics fade; highlighted words grow in and shrink out with the same fade.
+// Sampling the recording clock keeps pause, replay, and seeking deterministic.
+function sampleText(seconds, index, unit, count, reducedMotion, highlighted = false) {
   const age = seconds - cues[index].time;
   const duration = (cues[index + 1]?.time ?? END_AT) - cues[index].time;
-  // Stagger only the styling: every word is legible at the cue boundary.
-  const order = unit / Math.max(count - 1, 1);
-  const progress = reducedMotion ? 1 : easeOut((age - order * 0.18) / 0.55);
-  const exit = reducedMotion ? 0 : smooth((age - duration + 0.4) / 0.4);
-  const scene = arrangements[index];
-  const remaining = 1 - progress;
-  const side = unit % 2 ? 1 : -1;
-  let x = 0, y = 0, rotation = 0, scale = 1, mask = 0;
-  if (scene.textEnter === 'rise') { y = remaining * 24; rotation = remaining * -3; }
-  if (scene.textEnter === 'mask') { y = remaining * 14; mask = remaining * 18; }
-  if (scene.textEnter === 'drift') { x = remaining * -22; y = remaining * 6; }
-  if (scene.textEnter === 'snap') { x = remaining * side * 16; scale = 1 + remaining * 0.12; }
-  if (scene.textEnter === 'punch') { scale = 1 + remaining * 0.22; y = remaining * -5; }
-  if (scene.textEnter === 'ripple') { y = remaining * Math.sin(order * Math.PI * 2) * 15; rotation = remaining * side * 5; }
-  if (scene.textEnter === 'spread') { x = remaining * (order - 0.5) * 45; scale = 1 - remaining * 0.12; }
-  if (scene.textExit === 'scatter') { x += exit * side * 12; rotation += exit * side * 4; }
-  if (scene.textExit === 'slide') x += exit * 22;
-  if (scene.textExit === 'sink') y += exit * 16;
-  if (scene.textExit === 'split') { x += exit * (order - 0.5) * 38; y -= exit * 8; }
-  if (scene.textExit === 'shrink') scale -= exit * 0.1;
+  const outroDuration = index === cues.length - 1 ? 2 : 0.45;
+  const entrance = smooth(age / 0.45);
+  const exit = smooth((age - duration + outroDuration) / outroDuration);
   return {
-    opacity: (0.78 + 0.22 * progress) * (1 - exit * (scene.textExit === 'dissolve' ? 0.8 : 0.4)),
-    x, y, rotation, scale, mask
+    opacity: entrance * (1 - exit),
+    scale: highlighted && !reducedMotion ? 0.82 + 0.18 * entrance * (1 - exit) : 1,
+    x: 0, y: 0, rotation: 0, mask: 0
   };
 }
