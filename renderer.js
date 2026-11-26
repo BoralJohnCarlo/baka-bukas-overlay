@@ -7,6 +7,8 @@ const timeLabel = document.getElementById('timeLabel');
 const status = document.getElementById('status');
 const intro = document.getElementById('intro');
 const stage = document.getElementById('stage');
+const memoryPrevious = document.getElementById('memoryPrevious');
+const memoryCurrent = document.getElementById('memoryCurrent');
 const desktopOverlay = window.overlay?.desktop === true;
 if (desktopOverlay && audio.dataset.fullSrc) audio.src = audio.dataset.fullSrc;
 
@@ -53,12 +55,16 @@ function showCue(index) {
   if (index < 0) return;
   const direction = arrangements[index];
   lyric.dataset.composition = direction.name;
+  lyric.dataset.treatment = direction.treatment;
   lyric.classList.toggle('emphasis', Boolean(direction.strong));
   lyric.setAttribute('aria-label', cues[index].text);
   for (const [wordIndex, word] of cues[index].text.split(' ').entries()) {
-    if (wordIndex) lyric.append(document.createTextNode(' '));
+    const lineBreak = (index === 4 || index === 8) && wordIndex === 2;
+    if (lineBreak) lyric.append(document.createElement('br'));
+    else if (wordIndex) lyric.append(document.createTextNode(' '));
     const wrapper = document.createElement('span');
     wrapper.className = 'word';
+    if (direction.accent.includes(wordIndex)) wrapper.className += ' accent-word';
     wrapper.setAttribute('aria-hidden', 'true');
     for (const part of direction.type === 'letters' ? [...word] : [word]) {
       const span = document.createElement('span');
@@ -74,9 +80,10 @@ function showCue(index) {
 function renderAt(seconds) {
   const stageWidth = stage.clientWidth;
   const stageHeight = stage.clientHeight;
-  const compact = !desktopOverlay || stageWidth < 760;
+  const compact = stageWidth < 760 || stageHeight < 500;
   const shortStage = compact && stageHeight < 400;
   stage.classList.toggle('compact-stage', compact);
+  stage.classList.toggle('short-stage', shortStage);
   const index = cueAt(seconds);
   if (index !== lastCue) {
     lastCue = index;
@@ -90,6 +97,18 @@ function renderAt(seconds) {
   timeLabel.textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`;
   seek.setAttribute('aria-valuetext', `${formatTime(elapsed)} of ${formatTime(duration)}`);
   const introAge = seconds - START_AT;
+  const backdropIndex = seconds >= END_AT ? cues.length - 1 : Math.max(0, index);
+  const backdropCard = photoSequence[backdropIndex][1] !== null ? 1 : 0;
+  const backdropNumber = photoSequence[backdropIndex][backdropCard] ?? 1;
+  const backdropAsset = photoLibrary[backdropCard][backdropNumber - 1].src;
+  // Reconstruct both layers from the cue clock so seeking is deterministic.
+  const priorIndex = Math.max(0, backdropIndex - 1);
+  const priorCard = photoSequence[priorIndex][1] !== null ? 1 : 0;
+  const priorAsset = photoLibrary[priorCard][(photoSequence[priorIndex][priorCard] ?? 1) - 1].src;
+  memoryPrevious.style.backgroundImage = `url("${priorAsset}")`;
+  memoryCurrent.style.backgroundImage = `url("${backdropAsset}")`;
+  memoryCurrent.style.opacity = String(reducedMotion.matches ? 1 : smooth((seconds - cues[backdropIndex].time) / 1.2));
+  stage.style.setProperty('--memory-drift', `${reducedMotion.matches ? 0 : Math.sin((seconds - START_AT) * 0.12) * 2}%`);
   intro.style.opacity = String(introAge >= 0 && introAge < 3.5 ? (1 - smooth((introAge - 2) / 1.5)) * 0.85 : 0);
   if (index < 0) {
     lyric.style.opacity = '0';
@@ -100,16 +119,20 @@ function renderAt(seconds) {
   const direction = arrangements[index];
 
   const introLayout = shortStage ? 1 - smooth((introAge - 3.5) / 0.6) : 0;
-  const cardWidth = compact ? `${Math.max(52, Math.min(224, stageWidth * 0.36, stageHeight * (0.30 - 0.07 * introLayout)))}px` : '';
-  const [x, y, width] = compact ? [50, 72 - 12 * introLayout, 90] : direction.text;
+  const cardWidth = `${Math.max(52, Math.min(224, stageWidth * (compact ? 0.36 : 0.16), stageHeight * (0.30 - 0.07 * introLayout)))}px`;
+  const layout = sampleLayout(index, compact, introLayout);
+  const [x, y, width] = layout.text;
   lyric.style.left = `${x}%`;
   lyric.style.top = `${y}%`;
   lyric.style.width = `${width}%`;
+  lyric.style.textAlign = compact ? 'center' : direction.align;
+  lyric.style.setProperty('--lyric-size', `${Math.max(18, Math.min(direction.strong ? 66 : 52, stageWidth * (compact ? 0.068 : 0.047), stageHeight * (compact ? 0.105 : 0.12)))}px`);
   lyric.style.opacity = String(1 - smooth((seconds - (END_AT - 2)) / 2));
   units.forEach((unit, i) => {
     const pose = sampleText(seconds, index, i, units.length, reducedMotion.matches);
     unit.style.opacity = String(pose.opacity);
     unit.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rotation}deg) scale(${pose.scale})`;
+    unit.style.clipPath = `inset(0 0 ${pose.mask}% 0)`;
   });
   photos.forEach((photo, card) => {
     const content = samplePhotoContent(seconds, index, card, reducedMotion.matches);
@@ -122,15 +145,27 @@ function renderAt(seconds) {
     if (bank.number.textContent !== number) bank.number.textContent = number;
     const pose = sampleCard(seconds, index, card, reducedMotion.matches);
     photo.style.opacity = String(pose.opacity);
-    const cardX = compact ? (card === 0 ? 26 : 74) : pose.x;
-    const cardY = compact ? 32 - 4 * introLayout : pose.y;
+    let [cardX, cardY] = compact ? layout.cards[card] : [pose.x, pose.y];
+    if (compact && index > 0 && cues[index - 1].photos.includes(card)) {
+      const previousLayout = sampleLayout(index - 1, true, introLayout).cards[card];
+      const travelProgress = cues[index].photos.includes(card)
+        ? (reducedMotion.matches ? 1 : easeOut((seconds - cues[index].time) / 0.95)) : 0;
+      cardX = mix(previousLayout[0], cardX, travelProgress);
+      cardY = mix(previousLayout[1], cardY, travelProgress);
+    }
+    if (compact && !reducedMotion.matches && index === cues.length - 1) {
+      const gather = smooth((seconds - (END_AT - 2)) / 2);
+      cardX = mix(cardX, 50, gather);
+      cardY = mix(cardY, 30, gather);
+    }
     if (photo.style.width !== cardWidth) photo.style.width = cardWidth;
     photo.style.left = `${cardX}%`;
     photo.style.top = `${cardY}%`;
     // Keep the photograph readable and use a flat transform once depth motion settles.
     const depth = Math.abs(pose.tilt) > 0.01 ? ` perspective(900px) rotateY(${pose.tilt}deg)` : '';
     const scale = pose.scale === 1 ? '' : ` scale(${pose.scale})`;
-    photo.style.transform = `translate(-50%, -50%) translate(${pose.dx}px, ${pose.dy}px)${depth} rotate(${pose.rotation * 0.35}deg)${scale}`;
+    const travel = compact ? Math.min(0.35, stageWidth / 1600) : 1;
+    photo.style.transform = `translate(-50%, -50%) translate(${pose.dx * travel}px, ${pose.dy * travel}px)${depth} rotate(${pose.rotation * 0.6}deg)${scale}`;
   });
 }
 

@@ -32,6 +32,10 @@ app.whenReady().then(async () => {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
     await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+    await win.webContents.executeJavaScript(`new Promise(resolve => {
+      if (audio.readyState >= 2) resolve();
+      else audio.addEventListener('loadeddata', resolve, { once: true });
+    })`);
     for (const [width, height] of [[280, 653], [320, 480], [320, 568], [360, 640], [375, 667], [390, 844], [412, 915], [430, 932], [480, 320], [568, 320], [667, 375], [844, 390], [932, 430], [600, 960], [768, 1024], [820, 1180], [1024, 768], [1024, 1366], [1180, 820], [1366, 1024], [390, 600], [844, 320], [320, 400], [320, 240], [360, 240], [390, 320], [568, 240]]) {
       win.setContentSize(width, height);
       const result = await win.webContents.executeJavaScript(`(async () => {
@@ -69,8 +73,15 @@ app.whenReady().then(async () => {
             check(card.left >= bounds.left - 2 && card.right <= bounds.right + 2 && card.top >= bounds.top - 2 && card.bottom <= bounds.bottom + 2, 'photo clipped: ' + cue.text);
           });
         }
+        renderAt(120.5);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         return { width: innerWidth, height: innerHeight };
       })()`);
+      if ((width === 390 && height === 844) || (width === 1366 && height === 1024)) {
+        const preview = path.join(process.env.OVERLAY_TEST_FOLDER, `design-${width}.png`);
+        fs.writeFileSync(preview, (await win.webContents.capturePage()).toPNG());
+        console.log('Design preview:', preview);
+      }
       console.log('Mobile browser layout passed:', result);
     }
     await win.webContents.executeJavaScript(`(async () => {

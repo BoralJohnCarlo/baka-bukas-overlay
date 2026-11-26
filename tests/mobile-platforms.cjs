@@ -98,14 +98,17 @@ async function checkSlider(page) {
   await slider.focus();
   await page.keyboard.press('Home');
   await page.waitForFunction(() => !audio.seeking && Math.abs(recordingTime() - 100) < 0.025);
-  assert.equal(await slider.inputValue(), '0');
+  // WebKit MP3 readback can land within one audio frame of the requested zero.
+  assert.ok(Math.abs(Number(await slider.inputValue())) < 0.025);
   const box = await slider.boundingBox();
   await slider.tap({ position: { x: box.width / 2, y: box.height / 2 } });
   await page.waitForFunction(() => !audio.seeking && recordingTime() > 128 && recordingTime() < 132);
   assert.equal(await page.evaluate(() => audio.paused), true);
   await page.locator('#playBtn').tap();
   await page.waitForFunction(() => !audio.paused && !startup && recordingTime() > 128 && recordingTime() < 134);
-  await slider.tap({ position: { x: box.width * 0.75, y: box.height / 2 } });
+  // Native ranges reserve half the 22px thumb at both ends of the track.
+  const activeBox = await slider.boundingBox();
+  await slider.tap({ position: { x: 11 + (activeBox.width - 22) * 0.75, y: activeBox.height / 2 } });
   await page.waitForFunction(() => !audio.paused && !startup && !audio.seeking && recordingTime() > 142 && recordingTime() < 148);
   await page.locator('#playBtn').tap();
   await page.waitForFunction(() => audio.paused && frame === null);
@@ -160,7 +163,11 @@ async function checkSlider(page) {
               await checkPlayback(page);
               await page.waitForFunction(() => photoBanks.every(bank => bank.images.every(image => image.complete && image.naturalWidth > 0)));
               await checkLayout(page);
-              await checkSlider(page);
+              try { await checkSlider(page); }
+              catch (error) {
+                console.error('Slider diagnostics:', name, await page.evaluate(() => ({ time: recordingTime(), paused: audio.paused, seeking: audio.seeking, startup, draggingSeek, resumeAfterScrub, status: status.textContent, slider: seek.value })));
+                throw error;
+              }
               for (const [width, height, padding] of [[320, 480, ''], [320, 400, ''], [480, 320, ''], [390, 844, '47px 0px 34px'], [844, 390, '0px 47px 21px'], [568, 260, '0px 44px 21px'], [360, 240, ''], [390, 320, '']]) {
                 await page.setViewportSize({ width, height });
                 await checkLayout(page, padding);

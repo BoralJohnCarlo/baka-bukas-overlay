@@ -29,7 +29,7 @@ class Element {
 }
 
 function setup({ browser = false } = {}) {
-  const ids = Object.fromEntries(['audio', 'lyric', 'playBtn', 'resetBtn', 'seek', 'timeLabel', 'status', 'intro', 'stage'].map(id => [id, new Element()]));
+  const ids = Object.fromEntries(['audio', 'lyric', 'playBtn', 'resetBtn', 'seek', 'timeLabel', 'status', 'intro', 'stage', 'memoryPrevious', 'memoryCurrent'].map(id => [id, new Element()]));
   ids.stage.clientWidth = 1440;
   ids.stage.clientHeight = 900;
   const audio = ids.audio;
@@ -74,7 +74,7 @@ function setup({ browser = false } = {}) {
   const load = async () => {
     audio.readyState = 4; await audio.emit('loadedmetadata');
   };
-  const snapshot = () => JSON.stringify([ids.lyric.style, photos.map(p => p.style), run('units.map(u => u.style)'), run('photoBanks.map(b => b.images.map(image => image.style))')]);
+  const snapshot = () => JSON.stringify([ids.lyric.style, ids.memoryPrevious.style, ids.memoryCurrent.style, ids.stage.style, photos.map(p => p.style), run('units.map(u => u.style)'), run('photoBanks.map(b => b.images.map(image => image.style))')]);
   return { ids, audio, photos, frames, run, step, load, snapshot, windowEvents, documentEvents, motionPreference, resizeStage: () => stageResize() };
 }
 
@@ -163,9 +163,21 @@ test('mobile placement follows available stage space without changing audio timi
   s.ids.stage.clientWidth = 360;
   s.run('renderAt(130)');
   assert.equal(s.ids.lyric.style.width, '90%');
-  assert.equal(s.ids.lyric.style.top, '72%');
-  assert.deepEqual(s.photos.map(p => p.style.left), ['26%', '74%']);
+  assert.equal(s.ids.lyric.style.top, '75%');
+  assert.deepEqual(s.photos.map(p => p.style.left), ['48%', '52%']);
   assert.equal(s.audio.currentTime, 100);
+});
+
+test('scene treatments vary, reduced motion settles, and the ending retains its backdrop', () => {
+  const s = setup({ browser: true });
+  assert.ok(s.run('new Set(arrangements.map(scene => scene.textEnter)).size') >= 6);
+  assert.ok(s.run('new Set(arrangements.map(scene => scene.textExit)).size') >= 5);
+  assert.equal(s.run('sampleText(119.1, 4, 0, 8, true).scale'), 1);
+  assert.equal(Math.abs(s.run('sampleText(119.1, 4, 0, 8, true).y')), 0);
+  s.run('renderAt(159.5)');
+  const lastBackdrop = s.ids.memoryCurrent.style.backgroundImage;
+  s.run('renderAt(160)');
+  assert.equal(s.ids.memoryCurrent.style.backgroundImage, lastBackdrop);
 });
 
 test('mobile clip starts audibly without an initial seek, preserving the recording timeline', async () => {

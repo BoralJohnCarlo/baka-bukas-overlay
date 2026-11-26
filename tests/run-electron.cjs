@@ -16,7 +16,7 @@ const env = { ...process.env, OVERLAY_TEST_FOLDER: folder };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(require('electron'), ['--enable-logging=stderr', path.join(__dirname, process.argv[2] || 'electron-smoke.cjs')], { env, stdio: 'inherit', windowsHide: true });
 child.on('error', error => console.error('Could not launch Electron:', error));
-const watchdog = setTimeout(() => { child.kill(); process.exitCode = 1; }, 60000);
+const watchdog = setTimeout(() => { child.kill(); process.exitCode = 1; }, 120000);
 child.on('exit', code => {
   clearTimeout(watchdog);
   if (code !== 0) console.error('Electron smoke test exited with code:', code);

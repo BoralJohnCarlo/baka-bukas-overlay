@@ -147,3 +147,52 @@ input[hidden] { display: none; }
 @media (orientation: landscape) and (max-height: 260px) {
   .browser-mode .controls { align-self: flex-start; }
 }
+
+/* Cinematic memory scenes. Every moving value is supplied by the audio clock. */
+.short-stage .intro em { display: none; }
+.memory, .atmosphere { position: absolute; inset: 0; pointer-events: none; }
+.memory { display: none; overflow: hidden; z-index: -2; background: #10151b; }
+.browser-mode .memory { display: block; }
+.memory > div { position: absolute; inset: -8%; background-size: cover; background-position: center; filter: blur(18px) saturate(.7); opacity: 1; transform: translate3d(var(--memory-drift, 0%), 0, 0) scale(1.08); }
+.memory::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #0d111675, #10151b9c 55%, #10151be0), radial-gradient(ellipse at 50% 38%, transparent 10%, #050a1090 100%); }
+.atmosphere { display: none; z-index: -1; opacity: .65; background: radial-gradient(ellipse at 8% 25%, #d9b88a30, transparent 48%), radial-gradient(ellipse at 95% 70%, #678ca51a, transparent 50%); }
+.atmosphere::after { content: ''; position: absolute; inset: 0; opacity: .12; background-image: url('grain.svg'); }
+.browser-mode .atmosphere { display: block; }
+.lyric { font-size: var(--lyric-size, 36px) !important; line-height: 1.14; letter-spacing: -.035em; }
+.lyric .word { position: relative; }
+.lyric .accent-word { color: #efd0a0; }
+.lyric[data-treatment='statement'] { font-family: 'Arial Narrow', 'Aptos Display', 'Segoe UI', sans-serif; font-style: normal; font-weight: 800; letter-spacing: -.055em; line-height: 1.08; }
+.lyric[data-treatment='statement'] .accent-word { text-transform: uppercase; }
+.lyric[data-treatment='statement'] .word:not(.accent-word) { font: italic 400 .8em/1.25 'Palatino Linotype', 'Book Antiqua', Georgia, serif; letter-spacing: -.025em; color: #fff8ed; }
+.lyric[data-treatment='question'] .accent-word { font-size: 1.18em; }
+.lyric[data-treatment='refrain'] { font-weight: 400; letter-spacing: -.055em; }
+.lyric[data-treatment='refrain'] .accent-word { font-style: normal; }
+.polaroid { border-radius: 2px; }
+.intro span { font-size: 12px; letter-spacing: .24em; }
+.intro em { font-size: 20px; }
+.controls { background: #12181de8; border-color: #d9b88a29; }
+.heading { font-size: 14px; }
+.heading span { font-size: 12px; }
+.subtitle { font-size: 16px; }
+button { font-size: 14px; }
+output, .status { font-size: 14px; }
+.shortcuts { font-size: 12px; }
+.browser-mode .controls { max-width: 520px; }
+@media (max-width: 759px), (max-height: 500px) {
+  .intro span { font-size: 11px; }
+  .intro em { font-size: 16px; }
+  .handwriting { font-size: 12px; }
+  .lyric { line-height: 1.08; }
+  .controls .subtitle { display: none; }
+  .heading { font-size: 13px; }
+  .heading span { font-size: 11px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .browser-mode .controls { max-width: 42%; }
+  .heading span { display: none; }
+  .status, output { font-size: 12px; }
+  .controls { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory > div { transform: none; }
+}
