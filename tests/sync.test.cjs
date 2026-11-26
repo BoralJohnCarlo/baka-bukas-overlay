@@ -340,20 +340,21 @@ test('approved alignment: measured times, unchanged segment, original text/order
   assert.equal(run('Object.isFrozen(cues) && cues.every(c => Object.isFrozen(c) && Object.isFrozen(c.photos))'), true);
 });
 
-test('photo inventory covers every assignment, follows 1–5 per person, and matches the existing cards', () => {
+test('photo inventory covers every assignment and repeats the original portraits in order', () => {
   const { run } = setup();
   const library = JSON.parse(run('JSON.stringify(photoLibrary)'));
   const sequence = JSON.parse(run('JSON.stringify(photoSequence)'));
   const timeline = JSON.parse(run('JSON.stringify(cues)'));
   assert.equal(sequence.length, timeline.length);
-  for (const [card, owner] of ['me', 'her'].entries()) {
+  for (const [card, owner] of ['me', 'her (original)'].entries()) {
     const files = fs.readdirSync(path.join(__dirname, '..', owner)).filter(name => /\.(jpg|jpeg|png|webp|avif)$/i.test(name));
-    assert.equal(files.length, 5, `${owner} inventory changed; check the photo plan`);
+    assert.equal(files.length, card === 0 ? 5 : 3, `${owner} inventory changed; check the photo plan`);
     library[card].forEach(asset => assert.ok(fs.existsSync(path.join(__dirname, '..', asset.src)), `Missing ${asset.src}`));
     const used = sequence.map(pair => pair[card]).filter(number => number !== null);
     assert.deepEqual([...new Set(used)], [1, 2, 3, 4, 5]);
     assert.deepEqual(used, [...used].sort((a, b) => a - b));
   }
+  assert.deepEqual(library[1].map(asset => asset.src), [1, 2, 3, 1, 2].map(number => `her (original)/${number}.jpg`));
   sequence.forEach((pair, i) => {
     pair.forEach((number, card) => assert.equal(number !== null, timeline[i].photos.includes(card)));
   });

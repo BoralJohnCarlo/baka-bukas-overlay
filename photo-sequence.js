@@ -1,9 +1,9 @@
-// Inventory checked before integration: me/1–5.jpg and her/1–5.jpg, no gaps.
+// Five narrator photos and three original portraits, repeated in numbered order.
 // Visual assignments only. The lyric timeline and its timestamps stay untouched.
 // Card 0 is the narrator (me / ako); card 1 is the person addressed (her / ikaw).
 const photoLibrary = Object.freeze([
   Object.freeze(['50% 100%', '62% 50%', '50% 100%', '50% 85%', '50% 45%'].map((position, i) => Object.freeze({ src: `me/${i + 1}.jpg`, position }))),
-  Object.freeze(['50% 90%', '50% 65%', '50% 100%', '50% 35%', '50% 40%'].map((position, i) => Object.freeze({ src: `her/${i + 1}.jpg`, position })))
+  Object.freeze(Array.from({ length: 5 }, (_, i) => Object.freeze({ src: `her (original)/${i % 3 + 1}.jpg`, position: '50% 50%' })))
 ]);
 
 // Keep a photo through connected lines; advance each person's album only 1 → 5.

@@ -12,7 +12,7 @@ The supplied audio file is read locally and never modified. Keep it in the `audi
 
 ## Mobile and browser use
 
-Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her` folders together on a static web host. Browsers play `audio/edit.mp3`, a 60-second derivative of the original recording from 1:40 to 2:40, without an initial seek. Byte-range support is still recommended for slider seeking. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
+Serve `index.html`, `favicon.svg`, `style.css`, `renderer.js`, `timeline.js`, `motion.js`, `photo-sequence.js`, and the `audio`, `me`, and `her (original)` folders together on a static web host. Browsers play `audio/edit.mp3`, a 60-second derivative of the original recording from 1:40 to 2:40, without an initial seek. Byte-range support is still recommended for slider seeking. File names and capitalization must stay intact. Desktop Electron still runs with `npm start`.
 
 In a browser, the page has a dark background. Tap **Play song** to begin the fixed edit. There is no song picker. The browser clip maps its 0:00–1:00 media clock to the original 1:40–2:40 lyric timeline; the original recording stays unchanged. A cold start neither seeks nor starts muted, avoiding mobile Safari seek waits and asynchronous unmute restrictions. Desktop overlay transparency and global shortcuts are available in Electron only.
 
@@ -50,12 +50,12 @@ All lyric words are present and legible at their scheduled cue boundary. Stagger
 
 ## Customize visuals
 
-- `me/1.jpg` through `me/5.jpg` contain the narrator's photos; `her/1.jpg` through `her/5.jpg` contain the person addressed in the lyrics. Both folders were counted before integration: five images each, with no numbering gaps.
-- `photo-sequence.js` assigns the images to the existing lyric cues in numbered order. Photos hold across connected lines, so all ten images cover the full sequence without requiring extra images. Each card has five preloaded images, with framing set per photo; image changes crossfade from audio time and never delay lyrics.
+- `me/1.jpg` through `me/5.jpg` contain the narrator's photos. `her (original)/1.jpg` through `her (original)/3.jpg` contain the person addressed in the lyrics and repeat in order across her five slots: 1, 2, 3, 1, 2. The older `her/` folder is unused.
+- `photo-sequence.js` assigns the images to the existing lyric cues in numbered slots. Photos hold across connected lines. Each card has five preloaded slots; image changes crossfade from audio time and never delay lyrics. Her original portraits use centered framing.
 - Edit arrangements and motion in `motion.js`, and typography, paper styling, and controls in `style.css`.
 - The stage respects the system's reduced-motion preference.
 
-| Lyric cue | Your photo | Her photo |
+| Lyric cue | Your photo slot | Her photo slot (originals 1, 2, 3, 1, 2) |
 | --- | --- | --- |
 | Patapos na ang kanta | 1 | — |
 | Nasa'n ka na ba, sinta? | 1 | 1 |
